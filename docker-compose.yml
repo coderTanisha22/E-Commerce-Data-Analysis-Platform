@@ -1,0 +1,25 @@
+# MinIO is optional. The pipeline defaults to the local filesystem backend, so
+# this file only matters when ECOM_STORAGE_BACKEND=minio.
+services:
+  minio:
+    image: quay.io/minio/minio:latest
+    container_name: ecom-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${ECOM_MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${ECOM_MINIO_SECRET_KEY:-minioadmin}
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # web console
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Keep MinIO from competing with Spark/pandas for a constrained dev machine.
+    mem_limit: 512m
+
+volumes:
+  minio-data:
