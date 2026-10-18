@@ -1,4 +1,4 @@
-.PHONY: help install check fmt lint test pipeline ingest clean analyse minio-up minio-down
+.PHONY: help install check fmt lint test pipeline ingest clean inventory analyse minio-up minio-down
 
 PY := ./.venv/bin/python
 VENV := ./.venv/bin
@@ -29,6 +29,9 @@ ingest:  ## source -> raw
 
 clean:  ## raw -> processed
 	$(PY) -m ecom.cli clean
+
+inventory:  ## processed -> synthetic inventory table + manifest
+	$(PY) -m ecom.cli inventory
 
 analyse:  ## processed -> profile.json + figures
 	$(PY) -m ecom.cli analyse
