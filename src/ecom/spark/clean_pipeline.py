@@ -11,16 +11,19 @@ from datetime import date
 
 from pyspark.sql import SparkSession
 
-from spark.cleaning_utils import (
+from ecom.spark.cleaning_utils import (
     cast_numeric_columns,
     normalize_column_names,
     parse_timestamp_columns,
     trim_string_columns,
 )
-from spark.config import PROCESSED_ZONE_DIR, QUARANTINE_ZONE_DIR, RAW_ZONE_DIR, REPORTS_DIR
-from spark.quality_report import build_run_report, build_table_quality_summary, write_quality_report
-from spark.schema_contracts import get_contracted_tables, get_table_contract
-from spark.validators import (
+from ecom.spark.quality_report import (
+    build_run_report,
+    build_table_quality_summary,
+    write_quality_report,
+)
+from ecom.spark.schema_contracts import get_contracted_tables, get_table_contract
+from ecom.spark.validators import (
     check_required_columns_present,
     count_duplicate_keys,
     count_null_required_fields,
@@ -28,6 +31,7 @@ from spark.validators import (
     flag_invalid_numeric_values,
     flag_out_of_range_values,
 )
+from ecom.spark.zones import PROCESSED_ZONE_DIR, QUARANTINE_ZONE_DIR, RAW_ZONE_DIR, REPORTS_DIR
 
 
 def get_spark_session(app_name="olist_spark_cleaning"):
@@ -75,7 +79,9 @@ def clean_table(dataframe, contract):
     # still-string column with between()/>= fails under Spark's ANSI mode
     # instead of silently coercing, so casting is not optional here.
     columns_needing_numeric_cast = list(
-        dict.fromkeys(list(contract["numeric_columns"].keys()) + list(contract["range_columns"].keys()))
+        dict.fromkeys(
+            list(contract["numeric_columns"].keys()) + list(contract["range_columns"].keys())
+        )
     )
     working = cast_numeric_columns(working, columns_needing_numeric_cast)
 
@@ -98,7 +104,11 @@ def clean_one_table(spark, table_name, run_date):
 
     missing_columns = check_required_columns_present(raw_df, contract["required_columns"])
     if missing_columns:
-        return {"table_name": table_name, "status": "fail_missing_columns", "missing_columns": missing_columns}
+        return {
+            "table_name": table_name,
+            "status": "fail_missing_columns",
+            "missing_columns": missing_columns,
+        }
 
     input_row_count = raw_df.count()
     clean_rows, quarantined_rows = clean_table(raw_df, contract)
@@ -130,7 +140,9 @@ def run_spark_cleaning(run_date):
     spark = get_spark_session()
     run_id = f"{run_date}_clean"
 
-    table_summaries = [clean_one_table(spark, table_name, run_date) for table_name in get_contracted_tables()]
+    table_summaries = [
+        clean_one_table(spark, table_name, run_date) for table_name in get_contracted_tables()
+    ]
 
     report = build_run_report(run_date, run_id, table_summaries)
     write_quality_report(report, REPORTS_DIR / f"data_quality_report_{run_date}.json")
@@ -147,7 +159,10 @@ def main():
         print(f"{len(failed_tables)} table(s) failed cleaning.", file=sys.stderr)
         sys.exit(1)
 
-    print(f"Cleaning complete for run_date={run_date}. Report: {REPORTS_DIR}/data_quality_report_{run_date}.json")
+    print(
+        f"Cleaning complete for run_date={run_date}. "
+        f"Report: {REPORTS_DIR}/data_quality_report_{run_date}.json"
+    )
 
 
 if __name__ == "__main__":

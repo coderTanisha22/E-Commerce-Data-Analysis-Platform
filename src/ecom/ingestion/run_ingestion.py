@@ -10,21 +10,21 @@ import sys
 from datetime import date
 from pathlib import Path
 
-from data_ingestion.config import RAW_ZONE_DIR, SOURCE_DATA_DIR
-from data_ingestion.raw_writer import (
+from ecom.ingestion.raw_writer import (
     build_manifest_entry,
     build_run_id,
     copy_source_to_raw,
     raw_partition_path,
     write_manifest,
 )
-from data_ingestion.schema_registry import get_expected_source_files
-from data_ingestion.source_reader import (
+from ecom.ingestion.source_reader import (
     compute_file_checksum,
     count_data_rows,
     discover_source_files,
     validate_source_file,
 )
+from ecom.source_registry import get_expected_source_files
+from ecom.spark.zones import RAW_ZONE_DIR, SOURCE_DATA_DIR
 
 
 def parse_args():

@@ -2,7 +2,7 @@
 
 import csv
 
-from data_ingestion.source_reader import (
+from ecom.ingestion.source_reader import (
     compute_file_checksum,
     count_data_rows,
     discover_source_files,
@@ -26,7 +26,7 @@ def test_discover_source_files_finds_present_files(tmp_path):
 
 def test_read_source_header_strips_bom(tmp_path):
     file_path = tmp_path / "bom.csv"
-    file_path.write_bytes("﻿col_a,col_b\n1,2\n".encode("utf-8"))
+    file_path.write_bytes("﻿col_a,col_b\n1,2\n".encode())
     assert read_source_header(file_path) == ["col_a", "col_b"]
 
 

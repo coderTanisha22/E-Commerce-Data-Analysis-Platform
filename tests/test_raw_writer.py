@@ -2,7 +2,7 @@
 
 import json
 
-from data_ingestion.raw_writer import (
+from ecom.ingestion.raw_writer import (
     build_manifest_entry,
     build_run_id,
     copy_source_to_raw,

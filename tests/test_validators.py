@@ -1,8 +1,15 @@
 """Tests for spark.validators."""
 
+import pytest
+
+# The Spark suite is optional: skip it cleanly when PySpark is absent so the
+# pandas path stays testable without a 300 MB dependency.
+pytest.importorskip("pyspark", reason="PySpark not installed; install with '.[spark]'")
+
+
 from pyspark.sql.types import DoubleType, StructField, StructType
 
-from spark.validators import (
+from ecom.spark.validators import (
     check_required_columns_present,
     count_duplicate_keys,
     count_null_required_fields,
@@ -25,7 +32,9 @@ def test_count_null_required_fields_counts_nulls(spark):
 
 
 def test_count_duplicate_keys_counts_rows_sharing_a_key(spark):
-    df = spark.createDataFrame([("o1", "p1"), ("o1", "p1"), ("o2", "p2")], ["order_id", "product_id"])
+    df = spark.createDataFrame(
+        [("o1", "p1"), ("o1", "p1"), ("o2", "p2")], ["order_id", "product_id"]
+    )
     duplicate_count = count_duplicate_keys(df, ["order_id", "product_id"])
     assert duplicate_count == 2
 

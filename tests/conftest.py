@@ -2,6 +2,10 @@
 
 Deliberately tiny: a rule that needs 100k rows to test is a rule we cannot
 reason about.
+
+The ``spark`` fixture is the exception. It builds a real local SparkSession
+for the Spark cleaning tests, and skips them when PySpark is not installed,
+so the pandas path stays testable without a 300 MB optional dependency.
 """
 
 from __future__ import annotations
@@ -53,3 +57,24 @@ def translation() -> pd.DataFrame:
             "product_category_name_english": ["bed_bath_table"],
         }
     )
+
+
+@pytest.fixture(scope="session")
+def spark():
+    """A local SparkSession reused across the whole test session.
+
+    ``local[2]`` keeps tests fast without needing a real cluster, and session
+    scope avoids paying the startup cost per test. Skips the whole Spark suite
+    when PySpark is absent rather than failing it.
+    """
+    pyspark = pytest.importorskip(
+        "pyspark", reason="PySpark not installed; install with '.[spark]'"
+    )
+    session = (
+        pyspark.sql.SparkSession.builder.master("local[2]")
+        .appName("olist_tests")
+        .config("spark.ui.enabled", "false")
+        .getOrCreate()
+    )
+    yield session
+    session.stop()

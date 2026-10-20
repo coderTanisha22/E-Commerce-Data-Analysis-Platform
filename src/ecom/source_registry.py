@@ -2,7 +2,7 @@
 
 This is the single place that defines which files ingestion expects and
 which columns must be present in each one. Spark's cleaning stage has its
-own, separate contract (spark/schema_contracts.py) for the *cleaned*
+own, separate contract (ecom/ecom/spark/schema_contracts.py) for the *cleaned*
 columns/types — this file only describes the raw source as Olist ships it.
 """
 

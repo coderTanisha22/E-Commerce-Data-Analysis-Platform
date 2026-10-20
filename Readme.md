@@ -1,109 +1,126 @@
-# E-Commerce Data Platform
+# E-Commerce Data Engineering Platform
 
-Batch data platform turning the Olist Brazilian e-commerce dataset into a tested
-analytical layer for two use cases: **product co-occurrence** (explainable
-recommendations) and **inventory risk** (rule-based restocking).
+Batch data-engineering pipeline on the Olist Brazilian E-Commerce dataset, built
+for two analytical use cases: **product co-occurrence** (explainable
+recommendations) and **inventory analytics** (rule-based restocking).
 
-Implemented so far: ingestion, cleaning, storage, quality gates, analysis and
-visualisation. The dbt / BigQuery / NetworkX-serving / FastAPI / dashboard stages
-come next.
+No AI/ML by deliberate choice — recommendations come from a weighted
+co-occurrence graph and restocking from deterministic rules.
 
-## Quickstart
-
-```bash
-make install          # venv + dependencies
-cp .env.example .env
-make pipeline         # ingest -> clean -> analyse
-make check            # ruff + black + pytest
+```
+Olist CSVs → ingestion → raw zone → cleaning → processed zone
+                                                    ├── synthetic inventory → restock rules
+                                                    └── co-occurrence graph → recommendations
+             (dbt → BigQuery → FastAPI → dashboard: not yet built)
 ```
 
-Outputs land in `data/raw/`, `data/processed/` and `reports/`.
+## Project layout
 
-## Pipeline stages
+```
+src/ecom/
+  config.py              Settings and named analytical constants
+  contracts.py           Source contracts for the 6 tables the analysis uses
+  source_registry.py     Source contracts for all 9 Olist CSVs
+  logging_setup.py       One logging configuration
+  cli.py                 Command-line entrypoints
+  storage/               StorageBackend interface: local filesystem and MinIO
+  ingestion/             Source → raw zone
+    ingest.py              Contract-checked landing with a SHA-256 manifest
+    source_reader.py       Header validation, checksums, row counting
+    raw_writer.py          Run-date partitioned raw zone + provenance manifest
+    run_ingestion.py       Ingestion CLI
+  cleaning/              Raw → processed, pandas path
+  spark/                 Raw → processed, Spark path (optional dependency)
+    zones.py               Storage-zone paths
+    schema_contracts.py    Cleaned-data contracts per table
+    cleaning_utils.py      Pure Spark transforms
+    validators.py          Data-quality checks
+    quality_report.py      Per-run quality report
+    clean_pipeline.py      Spark cleaning orchestration
+  quality/               Quality gates for the pandas path
+  synthetic/             Synthetic inventory generator and validation
+  analysis/              Profiling metrics, co-occurrence graph, figures
+tests/                   pytest suite for both paths
+docs/
+  CODING_STANDARDS.md    Conventions, implementing the project tracker's rules
+  PROJECT_STATUS.md      Current state, measured findings, open decisions
+  contracts.md           Data contracts between pipeline stages
+data/                    Olist source CSVs as downloaded, never modified
+reports/                 Generated reports, figures and slide charts
+```
 
-| Stage | Command | Input | Output |
+## Two cleaning paths, on purpose
+
+The pipeline has **two implementations of the cleaning stage**:
+
+| Path | Engine | Module | Run with |
 |---|---|---|---|
-| Ingestion | `make ingest` | `data/*.csv` (read-only) | `raw/olist/*.csv` + `raw/_manifest.json` |
-| Cleaning | `make clean` | raw layer | `processed/*.parquet` + `_quality_report.json` |
-| Analysis | `make analyse` | processed layer | `reports/profile.json` + 5 PNG figures |
+| pandas | pandas | `ecom.cleaning` | `make clean` |
+| Spark | PySpark | `ecom.spark.clean_pipeline` | `python -m ecom.spark.clean_pipeline <run-date>` |
 
-## Storage backends
+They are kept side by side deliberately so the two engines can be benchmarked
+against each other on identical input — the optimisation comparison the course
+asks for. PySpark is an **optional dependency**; the pandas path and every test
+that does not need Spark run without it installed.
 
-The pipeline addresses storage by logical key, never by path, so the backend is a
-config flag. Both are verified to produce an identical key layout.
+## Setup
+
+Requires Python 3.10+. Java 17+ only if you want the Spark path.
 
 ```bash
-# local filesystem (default, no services needed)
-make pipeline
+make install                    # venv + dependencies
+pip install -e '.[spark]'       # optional: adds PySpark
+pip install -e '.[minio]'       # optional: adds the MinIO backend
+cp .env.example .env
+```
 
-# MinIO object storage
+## Running it
+
+```bash
+make pipeline      # ingest → clean → inventory → analyse  (pandas path)
+make ingest        # source → raw zone
+make clean         # raw → processed  (pandas)
+make inventory     # generate the synthetic inventory table
+make analyse       # profiling metrics + figures
+make check         # ruff + black + pytest
+```
+
+Spark path, for a given run date:
+
+```bash
+python -m ecom.ingestion.run_ingestion --run-date 2026-10-13
+python -m ecom.spark.clean_pipeline 2026-10-13
+```
+
+Storage backend is a config switch, not a rewrite:
+
+```bash
 make minio-up
 ECOM_STORAGE_BACKEND=minio make pipeline
 ```
 
-This is deliberately how the project resolves the MinIO-vs-local-filesystem
-disagreement between the two architecture documents: it is a runtime choice, not
-an architectural commitment.
+## Configuration
 
-## What the cleaning stage actually does
+Every path is an environment variable with a local-filesystem default.
 
-Each rule encodes a property measured on the real files, not an assumption.
+| Variable | Default | Used by |
+|---|---|---|
+| `ECOM_STORAGE_BACKEND` | `local` | pandas path (`local` or `minio`) |
+| `ECOM_SOURCE_DIR` | `data` | pandas ingestion |
+| `ECOM_RAW_ROOT` | `data/raw` | pandas ingestion |
+| `ECOM_PROCESSED_ROOT` | `data/processed` | pandas cleaning |
+| `OLIST_SOURCE_DIR` | `data` | Spark-path ingestion |
+| `OLIST_RAW_ZONE_DIR` | `storage/raw/olist` | Spark-path ingestion and cleaning |
+| `OLIST_PROCESSED_ZONE_DIR` | `storage/processed/olist` | Spark cleaning |
+| `OLIST_QUARANTINE_ZONE_DIR` | `storage/quarantine/olist` | Spark cleaning |
+| `OLIST_REPORTS_DIR` | `storage/reports` | Spark cleaning |
 
-| Rule | Why |
-|---|---|
-| `derive_order_lines` | Olist has **no quantity column** — each row is one unit. 112,650 unit rows become 102,425 lines, 7,088 with quantity > 1. Revenue is asserted unchanged (R$ 13,591,643.70). |
-| `build_order_products` | The `DISTINCT(order_id, product_id)` step, kept separate so the fact table keeps quantities while the graph counts each product once per order. |
-| `normalise_category` | 610 products have a NULL category. Since the catalogue has no product name, category is the only searchable attribute, so these get an explicit `unknown` bucket rather than vanishing. |
-| `attach_english_category` | **LEFT** join: the translation file covers 71 of 73 categories. An inner join silently drops `pc_gamer` and `portateis_cozinha_e_preparadores_de_alimentos`. |
-| `flag_order_status` | 2,963 orders are not delivered. They are flagged `is_delivered`, never deleted, so order counts still reconcile with the source. |
+## Documentation
 
-## Quality gates
-
-18 checks run per pipeline execution; error-severity failures raise and abort.
-The one standing warning is a documented Olist property, not a regression:
-
-```
-WARN foreign_key:orders_without_items: 775 orphan rows on order_id
-```
-
-## Key findings baked into the code
-
-The observation window and thresholds in `config.py` exist because profiling
-showed the naive defaults break both use cases:
-
-- **3.28%** of orders contain 2+ distinct products — the entire basis of the graph.
-- **94.9%** of the 4,058 product pairs were bought together exactly once.
-- **14.8%** of the catalogue (4,885 of 32,951 products) can be served a recommendation at all.
-- Median velocity is **0.0017 units/day**, so `days_of_inventory` alone cannot drive restocking; stock levels must be generated from observed velocity.
-- The window is **2017-02-01 to 2018-08-31**: Nov 2016 has 0 orders, and 19 of the last 20 orders are cancelled.
-
-## Layout
-
-```
-src/ecom/
-  config.py         settings + named analytical constants
-  contracts.py      declared schema, keys and known quirks per table
-  storage/          StorageBackend ABC + local and MinIO backends
-  ingestion/        source -> raw, with validation and a manifest
-  cleaning/         pure transforms + raw -> processed orchestrator
-  quality/          checks that gate the pipeline
-  analysis/         profiling metrics + figure generation
-  cli.py            the only module allowed argparse and print
-tests/              24 tests, all transforms covered
-docs/CODING_STANDARDS.md
-```
-
-## Conventions
-
-See **[docs/CODING_STANDARDS.md](docs/CODING_STANDARDS.md)**. The load-bearing
-rule is that a transform takes a DataFrame and returns a DataFrame and never does
-I/O — which is what keeps the rules unit-testable on 5-row fixtures and makes a
-future PySpark port a change of I/O calls rather than a rewrite.
-
-## Next
-
-1. Generate the synthetic inventory file from observed velocity (`fct_inventory`).
-2. dbt Core models: dimensions, facts, `fct_product_cooccurrence`, plus tests.
-3. Load to BigQuery.
-4. Serve the graph and restock priorities through FastAPI.
-5. Retailer dashboard.
+- **`docs/PROJECT_STATUS.md`** — read this first: current state, measured
+  findings, open decisions and the next workstream.
+- `docs/CODING_STANDARDS.md` — conventions. The load-bearing rule is that a
+  transform takes a DataFrame and returns a DataFrame and never does I/O.
+- `docs/contracts.md` — the data contract between ingestion and cleaning.
+- `reports/synthetic_inventory_validation.md` — how the synthetic data was
+  validated.

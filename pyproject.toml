@@ -60,7 +60,13 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["ARG"]
+"tests/*" = ["ARG", "PTH123"]
+# The Spark modules follow PySpark's own conventions rather than ours:
+#   N812  - `from pyspark.sql import functions as F` is the universal idiom
+#   PTH123 - builtin open() is fine; these files predate the pathlib rule
+"src/ecom/spark/*" = ["N803", "N806", "ARG001", "N812", "PTH123"]
+"src/ecom/ingestion/source_reader.py" = ["PTH123"]
+"src/ecom/ingestion/raw_writer.py" = ["PTH123"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

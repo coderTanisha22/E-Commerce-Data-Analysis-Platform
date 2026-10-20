@@ -1,8 +1,15 @@
 """Tests for spark.cleaning_utils."""
 
+import pytest
+
+# The Spark suite is optional: skip it cleanly when PySpark is absent so the
+# pandas path stays testable without a 300 MB dependency.
+pytest.importorskip("pyspark", reason="PySpark not installed; install with '.[spark]'")
+
+
 from pyspark.sql.types import StringType, StructField, StructType
 
-from spark.cleaning_utils import (
+from ecom.spark.cleaning_utils import (
     cast_numeric_columns,
     normalize_column_names,
     parse_timestamp_columns,

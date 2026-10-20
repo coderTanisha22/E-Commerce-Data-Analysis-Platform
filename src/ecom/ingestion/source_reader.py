@@ -10,7 +10,7 @@ import hashlib
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from data_ingestion.schema_registry import get_required_columns
+from ecom.source_registry import get_required_columns
 
 
 @dataclass
