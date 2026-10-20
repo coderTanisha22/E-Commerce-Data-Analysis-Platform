@@ -1,0 +1,14 @@
+# Copy to %USERPROFILE%\.dbt\profiles.yml and replace YOUR_GCP_PROJECT.
+ecom_dw:
+  target: dev
+  outputs:
+    dev:
+      type: bigquery
+      method: oauth
+      project: YOUR_GCP_PROJECT
+      dataset: olist_analytics_dev
+      location: US
+      threads: 4
+      timeout_seconds: 300
+      priority: interactive
+      retries: 1
