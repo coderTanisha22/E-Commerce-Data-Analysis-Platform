@@ -21,6 +21,7 @@ from ecom.config import get_settings
 from ecom.ingestion.ingest import ingest_all
 from ecom.storage import get_storage
 from ecom.synthetic.run_generate import generate_and_store
+from ecom.synthetic.validate import run_validation
 
 logger = logging.getLogger("ecom.cli")
 
@@ -47,6 +48,32 @@ def _cmd_inventory(_: argparse.Namespace) -> int:
     for status, count in sorted(manifest["status_counts"].items()):
         print(f"  {status:<18} {count:>7,}")
     print(f"  sha256 {manifest['sha256']}")
+    return 0
+
+
+def _cmd_validate_inventory(_: argparse.Namespace) -> int:
+    """Validate the synthetic inventory table and render its figures."""
+    settings = get_settings()
+    storage = get_storage(settings)
+    reports = settings.resolve(settings.reports_dir)
+
+    results = run_validation(
+        storage.get_parquet(storage.processed_key("order_lines")),
+        storage.get_parquet(storage.processed_key("orders")),
+        storage.get_parquet(storage.processed_key("synthetic_inventory")),
+        reports / "figures",
+    )
+    repro = results["reproducibility"]
+    print(f"  reproducible across runs : {repro['identical']}")
+    print(f"  differs across seeds     : {repro['differs_across_seeds']}")
+    untouched = results["untouched"]
+    both_unchanged = untouched["order_lines_unchanged"] and untouched["orders_unchanged"]
+    print(f"  real inputs unchanged    : {both_unchanged}")
+    print("  status share across seeds:")
+    for row in results["spread"].itertuples(index=False):
+        print(f"    {row.status:<18} {row.mean_pct:>7.3f}% +/- {row.std_pct:.4f}")
+    for path in results["figures"]:
+        print(f"  wrote {path}")
     return 0
 
 
@@ -106,6 +133,9 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("inventory", help="generate the synthetic inventory table").set_defaults(
         func=_cmd_inventory
     )
+    sub.add_parser(
+        "validate-inventory", help="validate the synthetic inventory table"
+    ).set_defaults(func=_cmd_validate_inventory)
 
     analyse = sub.add_parser("analyse", help="profile the processed layer and render figures")
     analyse.add_argument("--no-figures", action="store_true", help="skip PNG rendering")

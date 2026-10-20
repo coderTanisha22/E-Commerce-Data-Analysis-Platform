@@ -10,6 +10,7 @@ data/raw/
 data/processed/
 reports/figures/*.png
 reports/*.json
+reports/*.csv
 
 # secrets
 .env

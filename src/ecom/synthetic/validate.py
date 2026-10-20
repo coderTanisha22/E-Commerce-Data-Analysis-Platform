@@ -8,7 +8,6 @@ anchored to the real sales rate (faithfulness).
 
 from __future__ import annotations
 
-import hashlib
 import logging
 from pathlib import Path
 
@@ -210,11 +209,6 @@ def plot_seed_stability(stability: pd.DataFrame, out_dir: Path) -> Path:
     return path
 
 
-def digest_file(path: Path) -> str:
-    """SHA-256 of a file on disk, used to show real inputs were not rewritten."""
-    return hashlib.sha256(path.read_bytes()).hexdigest()
-
-
 def spread(stability: pd.DataFrame) -> pd.DataFrame:
     """Mean and standard deviation of each status share across seeds."""
     return pd.DataFrame(
@@ -226,3 +220,42 @@ def spread(stability: pd.DataFrame) -> pd.DataFrame:
             "max_pct": [round(stability[s].max(), 3) for s in STATUSES],
         }
     )
+
+
+def run_validation(
+    order_lines: pd.DataFrame,
+    orders: pd.DataFrame,
+    table: pd.DataFrame,
+    figures_dir: Path,
+    seeds: range = range(1, 31),
+) -> dict:
+    """Run every validation check and render the figures.
+
+    Groups the checks the way the report presents them so a caller gets one
+    structure back rather than orchestrating nine functions itself.
+
+    Args:
+        order_lines: Processed order lines, the real input.
+        orders: Processed orders, the real input.
+        table: The generated synthetic inventory table.
+        figures_dir: Directory to write the three figures into.
+        seeds: Seeds to test stability across.
+
+    Returns:
+        Keys ``reproducibility``, ``untouched``, ``stability``, ``spread``,
+        ``sensitivity`` and ``figures``.
+    """
+    figures_dir.mkdir(parents=True, exist_ok=True)
+    stability = seed_stability(order_lines, orders, seeds)
+    return {
+        "reproducibility": reproducibility_check(order_lines, orders),
+        "untouched": real_data_untouched(order_lines, orders),
+        "stability": stability,
+        "spread": spread(stability),
+        "sensitivity": sensitivity(order_lines, orders),
+        "figures": [
+            plot_distributions(table, figures_dir),
+            plot_stock_scales_with_speed(table, figures_dir),
+            plot_seed_stability(stability, figures_dir),
+        ],
+    }
