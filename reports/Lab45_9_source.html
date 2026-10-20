@@ -1,0 +1,397 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Lab45_9</title>
+<style>
+  @page { size: A4 portrait; margin: 18mm 16mm 16mm 16mm; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;font-size:10.5pt;line-height:1.5;color:#000;background:#fff}
+  h1{font-size:16pt;margin:0 0 4pt;line-height:1.25}
+  .sub{font-size:11pt;margin-bottom:2pt}
+  .meta{font-size:9.5pt;color:#333;margin-bottom:10pt}
+  .rule{border-bottom:1.5pt solid #000;margin-bottom:12pt}
+  h2{font-size:12pt;margin:16pt 0 5pt;padding-bottom:2pt;border-bottom:0.7pt solid #999}
+  h3{font-size:10.5pt;margin:11pt 0 3pt}
+  p{margin:0 0 7pt;text-align:justify}
+  ul{margin:0 0 7pt;padding-left:17pt}
+  li{margin-bottom:2.5pt}
+  table{border-collapse:collapse;width:100%;font-size:9pt;margin:5pt 0 4pt}
+  th,td{border:0.6pt solid #999;padding:3.5pt 5pt;text-align:left;vertical-align:top}
+  th{background:#e8edf1;font-weight:bold}
+  td.n,th.n{text-align:right;white-space:nowrap}
+  .cap{font-size:8.5pt;color:#333;margin:0 0 9pt}
+  .fig{margin:7pt 0 3pt;text-align:center;page-break-inside:avoid}
+  .fig img{max-width:100%;border:0.6pt solid #ccc}
+  .fig2{display:flex;gap:8pt;align-items:flex-start}
+  .fig2 img{width:100%;border:0.6pt solid #ccc}
+  .note{border:0.7pt solid #999;background:#f4f6f8;padding:6pt 8pt;font-size:9pt;margin:7pt 0}
+  .note p{margin:0;text-align:left}
+  code{font-family:"Courier New",monospace;font-size:9pt}
+  .flow{margin:7pt 0 3pt;font-size:8.5pt}
+  .frow{display:flex;align-items:stretch;gap:0;margin-bottom:5pt;flex-wrap:wrap}
+  .fbox{border:0.8pt solid #333;padding:4pt 6pt;text-align:center;min-width:64pt;background:#fff}
+  .fbox.todo{border-style:dashed;color:#555;background:#f7f7f7}
+  .fbox b{display:block;font-size:8.5pt}
+  .fbox span{font-size:7.5pt;color:#444}
+  .arr{display:flex;align-items:center;padding:0 4pt;font-size:11pt;color:#333}
+  ol.refs{padding-left:0;list-style:none;counter-reset:r;font-size:9pt;margin:0}
+  ol.refs li{counter-increment:r;display:grid;grid-template-columns:24pt 1fr;margin-bottom:4pt;text-align:left}
+  ol.refs li::before{content:"[" counter(r) "]"}
+  .pb{page-break-before:always}
+  .kpi{display:flex;border:0.7pt solid #999;margin:7pt 0}
+  .kpi div{flex:1;padding:4pt 6pt;border-right:0.7pt solid #999;text-align:center}
+  .kpi div:last-child{border-right:0}
+  .kpi b{display:block;font-size:13pt}
+  .kpi span{font-size:7.5pt;color:#333;text-transform:uppercase;letter-spacing:.04em}
+</style></head><body>
+
+<h1>Progress Report: Batch Data Platform for Product Co-Occurrence and Inventory Analysis</h1>
+<div class="sub">Lab Assignment 4 &amp; 5 &mdash; Sprint Progress Report and Project Tracker</div>
+<div class="meta">Group 9 &middot; Data Engineering, Semester 5 &middot; Reporting period: 31 August 2026 to 11 September 2026<br>
+Members: &lt;add names and roll numbers&gt;<br>Word count: 1,999 (body text, excluding tables, figure captions and references)</div>
+<div class="rule"></div>
+
+<h2>1. Introduction</h2>
+<p>This report covers what our group built between 31 August and 11 September 2026. The project is a batch data platform that turns Olist order data into clean, tested tables, then uses them to suggest related products and to find which products a seller needs to restock.</p>
+<p>This was a foundation sprint, so we focused on four areas: bringing the data in, cleaning it, storing it in layers, and measuring what it contains. The warehouse models, API and dashboard are not built yet.</p>
+
+<h2>2. Sprint scope and work breakdown</h2>
+<p>We planned 20 work items and completed 18, carrying two over. We report the carry-over openly because it shows which stream needed more time.</p>
+<table>
+  <tr><th>Workstream</th><th class="n">Planned</th><th class="n">Done</th><th>Result</th></tr>
+  <tr><td>Data ingestion</td><td class="n">5</td><td class="n">5</td><td>Source files checked against contracts and stored in the raw layer</td></tr>
+  <tr><td>Data storage</td><td class="n">4</td><td class="n">4</td><td>Raw and processed layers working on two storage backends</td></tr>
+  <tr><td>Cleaning and validation</td><td class="n">6</td><td class="n">6</td><td>Types fixed, quantity derived, 18 quality checks running</td></tr>
+  <tr><td>Analysis and visualisation</td><td class="n">5</td><td class="n">3</td><td>Measures and five figures done; two ranking views carried over</td></tr>
+  <tr><th>Total</th><th class="n">20</th><th class="n">18</th><th>90% complete</th></tr>
+</table>
+<p class="cap">Table 1. Work completed by stream during the reporting period.</p>
+
+<h2>3. System architecture</h2>
+<p>The pipeline runs in batch and data moves one way. Each stage has one job, so a problem in one stage does not spread. Dashed boxes are designed but not built.</p>
+
+<div class="flow">
+  <div class="frow">
+    <div class="fbox"><b>Olist CSV</b><span>6 source tables</span></div>
+    <div class="arr">&rarr;</div>
+    <div class="fbox"><b>Python</b><span>ingestion</span></div>
+    <div class="arr">&rarr;</div>
+    <div class="fbox"><b>Raw layer</b><span>exact copy</span></div>
+    <div class="arr">&rarr;</div>
+    <div class="fbox"><b>Cleaning</b><span>pure functions</span></div>
+    <div class="arr">&rarr;</div>
+    <div class="fbox"><b>Processed layer</b><span>Parquet</span></div>
+  </div>
+  <div class="frow">
+    <div class="fbox"><b>Analysis</b><span>measures + graph</span></div>
+    <div class="arr">&rarr;</div>
+    <div class="fbox todo"><b>dbt Core</b><span>models + tests</span></div>
+    <div class="arr">&rarr;</div>
+    <div class="fbox todo"><b>BigQuery</b><span>warehouse</span></div>
+    <div class="arr">&rarr;</div>
+    <div class="fbox todo"><b>FastAPI</b><span>search + suggestions</span></div>
+    <div class="arr">&rarr;</div>
+    <div class="fbox todo"><b>Dashboard</b><span>retailer view</span></div>
+  </div>
+</div>
+<p class="cap">Figure 1. Pipeline architecture. Solid boxes are built and running. Dashed boxes are designed but not started.</p>
+
+<p>Our design documents disagreed about storage: some said MinIO, some the local filesystem. Rather than pick one, we wrote a storage interface with two versions behind it. The pipeline asks for a key such as <code>raw/olist/orders.csv</code> and does not know which backend answers. Switching is one setting, and both gave identical results.</p>
+
+<h2>4. Data ingestion</h2>
+<p>Ingestion does three things only: check each file exists and has the expected columns, copy the bytes into the raw layer unchanged, and record what was copied. Cleaning happens later.</p>
+<p>Before a table can be loaded it must have a <b>contract</b> listing its columns, key, date and numeric columns, and measured row count. A table without one cannot be loaded. This matters because if a source file changes, the pipeline stops instead of quietly producing different numbers.</p>
+<p>We then write a manifest holding the row count, byte size and SHA-256 hash per table. Running ingestion twice on the same input gave identical manifests, showing the step is repeatable.</p>
+<table>
+  <tr><th>Source table</th><th class="n">Rows</th><th>One row means</th><th>Why we need it</th></tr>
+  <tr><td>orders</td><td class="n">99,441</td><td>one order</td><td>order dates and status</td></tr>
+  <tr><td>order_items</td><td class="n">112,650</td><td>one unit sold</td><td>links orders to products and sellers</td></tr>
+  <tr><td>products</td><td class="n">32,951</td><td>one product</td><td>category and size attributes</td></tr>
+  <tr><td>customers</td><td class="n">99,441</td><td>one customer per order</td><td>location analysis</td></tr>
+  <tr><td>sellers</td><td class="n">3,095</td><td>one seller</td><td>seller analysis</td></tr>
+  <tr><td>category_translation</td><td class="n">71</td><td>one category</td><td>English category names</td></tr>
+  <tr><th>Total landed</th><th class="n">347,649</th><th colspan="2">0 validation failures, 0 row-count drift</th></tr>
+</table>
+<p class="cap">Table 2. Tables ingested into the raw layer.</p>
+
+<p>Three facts changed our code. First, <code>order_items</code> has <b>no quantity column</b>; each row is one unit, so quantity must be counted. Second, <code>products</code> has <b>no name or description text</b>, only character counts, so keyword search on names is impossible. Third, the translation file covers 71 of the 73 categories used, so the join must be a left join.</p>
+
+<h2>5. Data storage</h2>
+<p>We keep three separate places for data and each has its own rule.</p>
+<table>
+  <tr><th>Layer</th><th>Format</th><th>Rule</th><th>Purpose</th></tr>
+  <tr><td>Source</td><td>CSV as downloaded</td><td>never written to by our code</td><td>evidence we can return to</td></tr>
+  <tr><td>Raw</td><td>exact copy plus manifest</td><td>written once per run</td><td>repeatable input</td></tr>
+  <tr><td>Processed</td><td>Parquet</td><td>replaced each run</td><td>clean input for analysis</td></tr>
+</table>
+<p class="cap">Table 3. Storage layers and their rules.</p>
+<p>We chose Parquet over CSV for the processed layer. CSV stores no data types, so every tool that reads it must guess them again, and guessing is where silent type errors begin. Parquet keeps the types we set. The column-based layout it uses is described in the Dremel work behind BigQuery [6] and the Parquet specification [8].</p>
+<table>
+  <tr><th>Processed table</th><th class="n">Rows</th><th>Contents</th></tr>
+  <tr><td>orders</td><td class="n">99,441</td><td>all orders with an <code>is_delivered</code> flag</td></tr>
+  <tr><td>order_lines</td><td class="n">102,425</td><td>one row per order and product, with quantity</td></tr>
+  <tr><td>order_products</td><td class="n">102,425</td><td>distinct order and product pairs, input to the graph</td></tr>
+  <tr><td>products</td><td class="n">32,951</td><td>products with English category names</td></tr>
+  <tr><td>customers</td><td class="n">99,441</td><td>customer attributes</td></tr>
+  <tr><td>sellers</td><td class="n">3,095</td><td>seller attributes</td></tr>
+</table>
+<p class="cap">Table 4. Processed tables produced by the cleaning stage.</p>
+
+<h2>6. Data cleaning and validation</h2>
+<p>Each cleaning rule is a small function that takes a table and returns a table, and none read or write files. This means we can test a rule on five rows, and moving to Spark later would change only the reading and writing code. We read every column as text first, then convert types in one step.</p>
+<table>
+  <tr><th>Rule</th><th>What it does</th><th>Why we chose it</th></tr>
+  <tr><td>trim_whitespace</td><td>removes spaces around values</td><td>" 12.5 " must read as a number, not become empty</td></tr>
+  <tr><td>coerce_types</td><td>converts dates and numbers</td><td>one clear place where types are decided</td></tr>
+  <tr><td>derive_order_lines</td><td>groups unit rows and counts quantity</td><td>Olist has no quantity column; 112,650 rows became 102,425 lines</td></tr>
+  <tr><td>build_order_products</td><td>keeps distinct order and product pairs</td><td>a product must count once per order in the graph</td></tr>
+  <tr><td>normalise_category</td><td>fills the empty category with <code>unknown</code></td><td>610 products had no category and would be unreachable</td></tr>
+  <tr><td>attach_english_category</td><td>left joins the translation file</td><td>an inner join would silently drop two categories</td></tr>
+  <tr><td>flag_order_status</td><td>adds <code>is_delivered</code> instead of deleting rows</td><td>2,963 orders are not delivered; deleting them hides the cancellation rate</td></tr>
+</table>
+<p class="cap">Table 5. Cleaning rules and the reason for each.</p>
+<p>The most important rule is <code>derive_order_lines</code>. Because each row of <code>order_items</code> is one unit, 10,225 rows repeat the same order and product. These are real multi-quantity purchases, not errors, so we added them together instead of deleting them. To prove we lost no sales in the process, the pipeline checks that total revenue is the same before and after the step. It reported <b>R$ 13,591,643.70</b> preserved. If someone later replaces this step with a simple <code>DISTINCT</code>, the pipeline will fail instead of quietly losing 10,225 units of sales.</p>
+
+<h2>7. Data quality results</h2>
+<p>We run 18 checks in every run. A check that finds a real problem stops the pipeline. Only one check is allowed to warn, because it describes something genuinely true about Olist rather than a mistake.</p>
+<table>
+  <tr><th>Check</th><th class="n">Result</th><th>Outcome</th></tr>
+  <tr><td>Key is unique in all six tables</td><td class="n">6 of 6</td><td>Pass</td></tr>
+  <tr><td>No empty identifiers in orders and order items</td><td class="n">0 empty</td><td>Pass</td></tr>
+  <tr><td>Order items point to a real order, product and seller</td><td class="n">0 orphans</td><td>Pass</td></tr>
+  <tr><td>Orders point to a real customer</td><td class="n">0 orphans</td><td>Pass</td></tr>
+  <tr><td>Exactly duplicated rows in order items</td><td class="n">0</td><td>Pass</td></tr>
+  <tr><td>Order line key unique after grouping</td><td class="n">102,425</td><td>Pass</td></tr>
+  <tr><td>Every product has an English category</td><td class="n">0 empty</td><td>Pass</td></tr>
+  <tr><td>Orders that have no item rows</td><td class="n">775</td><td>Warn</td></tr>
+</table>
+<p class="cap">Table 6. Data quality checks and results. 17 of 18 passed; one raised a declared warning.</p>
+<p>The result surprised us: Olist is cleaner than our design assumed. Every uniqueness and relationship check passed on the raw files, with no duplicate rows at all. Our cleaning is therefore about types, empty categories and grouping, not repairing broken records. The 775 orders without item rows are a real property of the dataset, so we warn and record why, so a future real problem is not hidden behind a known one.</p>
+
+<h2>8. Analysis and results</h2>
+<p>All figures below come from one file that the pipeline writes, so the numbers in this report and the numbers in our charts cannot disagree.</p>
+
+<h3>8.1 Choosing the time window</h3>
+<p>The dataset covers 4 September 2016 to 17 October 2018, but both ends are unusable. November 2016 has zero orders and December 2016 has one. Only 20 orders came after 1 September 2018, and 19 were cancelled. The full range would make every sales-per-day figure too small, so we fixed the window at <b>1 February 2017 to 31 August 2018</b>, 577 days, stored as a named constant.</p>
+<div class="fig"><img src="reports/figures/03_monthly_orders.png" alt="Orders per month"></div>
+<p class="cap">Figure 2. Orders per month. Months outside our analysis window are shaded differently.</p>
+
+<h3>8.2 Sales measures</h3>
+<table>
+  <tr><th>Measure</th><th class="n">Value</th><th>Measure</th><th class="n">Value</th></tr>
+  <tr><td>Window length</td><td class="n">577 days</td><td>Revenue</td><td class="n">R$ 13,069,228.77</td></tr>
+  <tr><td>Orders</td><td class="n">95,461</td><td>Average order value</td><td class="n">R$ 136.91</td></tr>
+  <tr><td>Units sold</td><td class="n">108,967</td><td>Products in catalogue</td><td class="n">32,951</td></tr>
+  <tr><td>Products with no category</td><td class="n">610</td><td>Distinct categories</td><td class="n">74</td></tr>
+</table>
+<p class="cap">Table 7. Sales measures inside the analysis window, delivered orders only.</p>
+
+<h3>8.3 Products bought together</h3>
+<p>We took distinct order and product pairs, then formed every product pair inside each order. Each pair is stored once by putting the smaller identifier first, and no product is paired with itself. The result was far thinner than expected, because most Olist orders hold one product.</p>
+<table>
+  <tr><th>Measure</th><th class="n">Value</th><th>What it means</th></tr>
+  <tr><td>Orders checked</td><td class="n">98,666</td><td>orders with at least one product</td></tr>
+  <tr><td>Orders with 2 or more products</td><td class="n">3,236</td><td>only 3.28% of all orders</td></tr>
+  <tr><td>Product pairs found</td><td class="n">4,058</td><td>edges in the graph</td></tr>
+  <tr><td>Pairs seen in only one order</td><td class="n">3,851</td><td>94.9% of all pairs</td></tr>
+  <tr><td>Products appearing in any pair</td><td class="n">4,885</td><td>14.8% of the catalogue</td></tr>
+  <tr><td>Separate groups in the graph</td><td class="n">1,652</td><td>the graph is not connected</td></tr>
+  <tr><td>Largest connected group</td><td class="n">398</td><td>products</td></tr>
+  <tr><td>Products with exactly one neighbour</td><td class="n">67.1%</td><td>ranking them is meaningless</td></tr>
+</table>
+<p class="cap">Table 8. Co-occurrence results for the product graph.</p>
+<div class="fig2">
+  <div><img src="reports/figures/01_basket_size.png" alt="Products per order"></div>
+  <div><img src="reports/figures/02_pair_weight.png" alt="Pair weight"></div>
+</div>
+<p class="cap">Figure 3 (left). Distinct products per order; 95,430 orders hold one product and make no pair. Figure 4 (right). How often each pair appeared; almost every pair was bought together once.</p>
+<div class="fig"><img src="reports/figures/04_coverage.png" alt="Coverage"></div>
+<p class="cap">Figure 5. Share of the catalogue the graph can serve. 4,885 of 32,951 products have at least one neighbour.</p>
+
+<h3>8.4 Sales speed for restocking</h3>
+<p>For restocking we need each seller-product pair's sales speed, so we divided units sold by days in the window.</p>
+<table>
+  <tr><th>Measure</th><th class="n">Value</th></tr>
+  <tr><td>Seller-product pairs with at least one sale</td><td class="n">33,262</td></tr>
+  <tr><td>Pairs that sold exactly one unit in 577 days</td><td class="n">18,633 (56.0%)</td></tr>
+  <tr><td>Median sales speed</td><td class="n">0.0017 units per day</td></tr>
+  <tr><td>Highest sales speed</td><td class="n">0.90 units per day</td></tr>
+</table>
+<p class="cap">Table 9. Sales speed per seller-product pair.</p>
+<div class="fig"><img src="reports/figures/05_units_sold.png" alt="Units sold"></div>
+<p class="cap">Figure 6. Units sold per seller-product pair. More than half sold exactly one unit.</p>
+<p>This affects our restocking rule directly. Dividing a stock of 50 units by the median speed gives about 105 years of cover, so nothing would ever be marked urgent. The synthetic stock levels must therefore be generated <b>from</b> each pair's own sales speed, or the rule always returns the same answer.</p>
+
+<h2>9. Product graph findings</h2>
+<p>Our design fixed only two things: an edge means "same order", and the weight is the number of shared orders. We found five more choices that were never decided and tested each. Three of our assumptions were wrong.</p>
+<table>
+  <tr><th>Choice</th><th>What we measured</th><th>Our decision</th></tr>
+  <tr><td>Node type</td><td>product level reaches 14.8% of the catalogue, category level 98.2%</td><td>two levels, product first, category as fallback</td></tr>
+  <tr><td>Which orders count</td><td>all orders give 4,058 pairs, delivered only give 4,022</td><td>delivered only, matching the revenue figures</td></tr>
+  <tr><td>Weight meaning</td><td>ranking by shared orders and by Jaccard share nothing in the top 50</td><td>keep shared orders, add lift as a second column</td></tr>
+  <tr><td>Minimum evidence</td><td>see Table 11</td><td>2 shared orders and both products sold 5 or more times</td></tr>
+  <tr><td>Tie breaking</td><td>95.9% of products with 2 or more neighbours had equal weights</td><td>order by shared orders, then lift, then product id</td></tr>
+  <tr><td>Direction</td><td>confidence differs by 2.84 times on average, up to 24.6 times</td><td>store both directions as columns</td></tr>
+</table>
+<p class="cap">Table 10. Graph parameters we tested and the decision taken.</p>
+<p>The weight result surprised us most. We assumed dividing by how often each product sells would help. It does not: a product sold once and bought once with another product sold once scores the highest possible Jaccard value of 1.0, so normalising alone pushes noise to the top. It works only with a minimum evidence rule. Separating support from confidence comes from association rule mining [1], and precomputing item pairs instead of predicting them follows item-based collaborative filtering [2], [3] and the Amazon patents on item-to-item similarity [9], [10].</p>
+<table>
+  <tr><th>Minimum evidence rule</th><th class="n">Pairs kept</th><th class="n">Products served</th><th class="n">Share of catalogue</th></tr>
+  <tr><td>no rule (our first design)</td><td class="n">4,058</td><td class="n">4,885</td><td class="n">14.83%</td></tr>
+  <tr><td>2 or more shared orders</td><td class="n">207</td><td class="n">312</td><td class="n">0.95%</td></tr>
+  <tr><td>2 shared orders, both sold 5+ times</td><td class="n">147</td><td class="n">214</td><td class="n">0.65%</td></tr>
+  <tr><td>3 shared orders, both sold 5+ times</td><td class="n">63</td><td class="n">94</td><td class="n">0.29%</td></tr>
+</table>
+<p class="cap">Table 11. Effect of the minimum evidence rule on coverage.</p>
+<p>Every setting is uncomfortable. We chose the third row, which keeps only 0.65% of the catalogue at product level, and we report that rather than hide it. Our conclusion is that <b>Olist cannot support product-level suggestions across the whole catalogue</b>, so the category level must do most of the work. Graph neural networks [4] and session-based graph methods [5] target sparse data, but need denser input than we have and would break our explainability requirement.</p>
+<p>We also added a way to check whether the graph works. We built it from orders before a chosen date, then counted how many later pairs it already held. With a 1 June 2018 split, 42 of 905 later pairs were present, a hit rate of 4.6%. Only 22.3% of test-period products existed in the training graph, so the limit is new products arriving, not our ranking method.</p>
+
+<h2>10. Coding standards</h2>
+<p>We agreed coding standards and wrote them down. The rules come from the tracker, and our document states that if the two disagree the tracker is correct. Most rules are checked by a tool rather than by memory: one command runs the linter, formatter and tests together.</p>
+<table>
+  <tr><th>Area</th><th>Rule</th><th>Checked by</th></tr>
+  <tr><td>Naming</td><td>functions and variables <code>snake_case</code>, classes <code>PascalCase</code>, constants <code>UPPER_SNAKE_CASE</code></td><td>linter</td></tr>
+  <tr><td>Formatting</td><td>one style, line length 100</td><td>formatter</td></tr>
+  <tr><td>Functions</td><td>one job each, about 50 lines or fewer</td><td>line-count check</td></tr>
+  <tr><td>Functions</td><td>a cleaning rule takes a table and returns a table, never touching files</td><td>review and unit tests</td></tr>
+  <tr><td>Comments</td><td>explain why a choice exists, not what the code does</td><td>review</td></tr>
+  <tr><td>Constants</td><td>every threshold named, with a comment giving the reason</td><td>review</td></tr>
+  <tr><td>Errors</td><td>a failed quality check raises; warnings must be declared on purpose</td><td>unit tests</td></tr>
+  <tr><td>SQL and dbt</td><td>uppercase keywords, named CTEs, no <code>SELECT *</code>, explicit joins</td><td>review, from next sprint</td></tr>
+</table>
+<p class="cap">Table 12. Coding standards and how each is enforced.</p>
+<table>
+  <tr><th>Measure</th><th class="n">Value</th><th>Measure</th><th class="n">Value</th></tr>
+  <tr><td>Python modules</td><td class="n">19</td><td>Linter warnings</td><td class="n">0</td></tr>
+  <tr><td>Lines of code with tests</td><td class="n">2,296</td><td>Formatting differences</td><td class="n">0</td></tr>
+  <tr><td>Unit tests, all passing</td><td class="n">24</td><td>Functions over 50 lines</td><td class="n">2 (both justified)</td></tr>
+</table>
+<p class="cap">Table 13. State of the codebase at the end of the sprint.</p>
+<p>Applying our own rule found a real problem: our main cleaning function had grown to 105 lines and did six things. We split it into six named functions. The output was identical afterwards and the code is far easier to test.</p>
+
+<h2 class="pb">11. Sprint metrics</h2>
+<div class="kpi">
+  <div><b>20</b><span>Planned items</span></div>
+  <div><b>18</b><span>Throughput</span></div>
+  <div><b>90%</b><span>Completion</span></div>
+  <div><b>28/32</b><span>Velocity</span></div>
+  <div><b>1.36 d</b><span>Mean cycle time</span></div>
+</div>
+
+<h3>11.1 Sprint burnup</h3>
+<p>Burnup shows completed work against total scope; the gap is work remaining. Ours rose steadily and flattened on 9 September when the last two items stopped moving.</p>
+<div class="fig"><img src="reports/sprint/m1_burnup.png" alt="Burnup"></div>
+<p class="cap">Figure 7. Sprint burnup, 31 August to 11 September 2026.</p>
+
+<h3>11.2 Sprint burndown</h3>
+<p>Burndown asks the same question in reverse. We started with 20 items and finished with 2. We trailed the ideal line for three days because contracts and validation took longer than estimated, then moved ahead from 5 September.</p>
+<div class="fig"><img src="reports/sprint/m2_burndown.png" alt="Burndown"></div>
+<p class="cap">Figure 8. Sprint burndown against the ideal line.</p>
+
+<h3>11.3 Sprint throughput</h3>
+<p>Throughput is the number of items reaching Done. Ours was 18. Ingestion, storage and cleaning finished fully; only analysis and visualisation fell short at 3 of 5.</p>
+<div class="fig"><img src="reports/sprint/m3_throughput.png" alt="Throughput"></div>
+<p class="cap">Figure 9. Throughput by workstream, planned against completed.</p>
+<table>
+  <tr><th>Workstream</th><th class="n">Completed</th><th class="n">Share of throughput</th></tr>
+  <tr><td>Data ingestion</td><td class="n">5</td><td class="n">27.8%</td></tr>
+  <tr><td>Data storage</td><td class="n">4</td><td class="n">22.2%</td></tr>
+  <tr><td>Cleaning and validation</td><td class="n">6</td><td class="n">33.3%</td></tr>
+  <tr><td>Analysis and visualisation</td><td class="n">3</td><td class="n">16.7%</td></tr>
+  <tr><th>Total</th><th class="n">18</th><th class="n">100%</th></tr>
+</table>
+<p class="cap">Table 14. Throughput split by workstream.</p>
+
+<h3>11.4 Cumulative flow diagram</h3>
+<p>This shows how work moved through Backlog, In Progress and Done. A healthy flow grows the Done band while keeping In Progress thin. Ours did: In Progress never exceeded four items, so we finished tasks instead of starting too many. It also shows where the carry-over sat, one item in backlog and one in progress.</p>
+<div class="fig"><img src="reports/sprint/m4_cfd.png" alt="Cumulative flow"></div>
+<p class="cap">Figure 10. Cumulative flow across backlog, in-progress and done states.</p>
+
+<h3>11.5 Cycle time</h3>
+<p>Cycle time measures how long an item took from start to finish. Across our 18 completed items the mean was <b>1.36 days</b> and the median <b>1.35 days</b>. Most finished in one to two days; the longest involved validation and reconciliation. The lesson is that data engineering tasks look small until quality checks are included.</p>
+<div class="fig"><img src="reports/sprint/m5_cycletime.png" alt="Cycle time"></div>
+<p class="cap">Figure 11. Cycle time for each of the 18 completed items.</p>
+
+<h3>11.6 Velocity</h3>
+<p>Velocity counts completed story points. We planned 32 and completed 28, or 87.5%. It is not a score for comparing groups; its use is planning, so after several sprints we can judge how much to commit to next.</p>
+<div class="fig"><img src="reports/sprint/m6_velocity.png" alt="Velocity"></div>
+<p class="cap">Figure 12. Planned against completed story points.</p>
+
+<div class="note"><p><b>How these metrics were produced.</b> The 20 work items and their workstreams come from our task breakdown. Day-by-day positions were reconstructed from the order in which work was completed and from our commit and file history, not exported from a task tool. The figures are internally consistent: burnup and burndown reconcile exactly, the three flow bands sum to 20 every day, and the cycle times give the stated mean and median. Live status timestamps should replace these once recorded.</p></div>
+
+<h2>12. Project tracker refinement</h2>
+<p>We updated the tracker to match this progress. The Status column offered only "Planning", so it could not record finished work; we extended it to Planning, In Progress, Completed, Blocked and Carried Over. Module_Start and Module_End were empty, which disabled the date-wise progress map the sheet promises, so every deliverable now carries its own dates. Priority was High on every row and carried no information; it now separates path-critical work from work that can slip.</p>
+<p>We also changed the requirement codes so each names its area (Table 15), and reworded the storage requirement, which named MinIO and contradicted two of our own design documents.</p>
+<table>
+  <tr><th>Code</th><th>Old</th><th>Requirement</th><th>State</th></tr>
+  <tr><td>FR-ingest</td><td>FR-01</td><td>ingest Olist and inventory data in batch</td><td>Met</td></tr>
+  <tr><td>FR-rawpr</td><td>FR-02</td><td>store raw and processed data in separate layers of an object store, with a local option for development</td><td>Met</td></tr>
+  <tr><td>FR-clean</td><td>FR-03</td><td>clean and validate before transformation</td><td>Met</td></tr>
+  <tr><td>FR-co</td><td>FR-05</td><td>find products bought together in one order</td><td>Met</td></tr>
+  <tr><td>NFR-raw</td><td>NFR-01</td><td>keep the source data unchanged</td><td>Met</td></tr>
+  <tr><td>NFR-checks</td><td>NFR-03</td><td>find empty identifiers, bad records and broken relationships</td><td>Met</td></tr>
+  <tr><td>NFR-pairs</td><td>NFR-05</td><td>no repeated pairs and no product paired with itself</td><td>Met</td></tr>
+  <tr><td>NFR-modular</td><td>NFR-08</td><td>stages can be maintained separately</td><td>Met</td></tr>
+  <tr><td>NFR-explain</td><td>NFR-07</td><td>suggestions must be explainable</td><td>Met</td></tr>
+  <tr><td>FR-fallback</td><td>new</td><td>fall back to category level when a product has no neighbour</td><td>Designed</td></tr>
+  <tr><td>NFR-order</td><td>new</td><td>neighbour order must be repeatable</td><td>Designed</td></tr>
+  <tr><td>NFR-coverage</td><td>new</td><td>coverage and hit rate reported on every build</td><td>Designed</td></tr>
+</table>
+<p class="cap">Table 15. Requirements addressed this sprint. The three new ones came from the graph study in Section 9.</p>
+
+<h2>13. Limitations</h2>
+<ul>
+  <li>The synthetic inventory file does not exist yet, so no restocking result appears in this report.</li>
+  <li>Cleaning is written in pandas, not Spark. The rules are shaped so moving to Spark would change only the reading and writing code. At 112,650 rows distributed processing is not required.</li>
+  <li>Product-level suggestions serve only 0.65% of the catalogue under our evidence rule, so the category level carries most of the work.</li>
+  <li>The hit rate of 4.6% is low, limited by new products arriving rather than by our ranking method.</li>
+  <li>Search cannot use product names because the dataset contains none.</li>
+  <li>Stock levels, reorder points and lead times will be created by us and are labelled synthetic throughout.</li>
+</ul>
+
+<h2>14. Conclusion and next steps</h2>
+<p>This sprint produced a working first half of the pipeline. Data is ingested against contracts with a manifest, stored in separate raw and processed layers on local disk or an object store, cleaned by small tested functions, checked by 18 quality gates, and described by measures and five figures. We also agreed coding standards and made a tool enforce them.</p>
+<p>The most valuable output is not a chart. It is the measurement that only 3.28% of Olist orders hold more than one product, and only 14.8% of the catalogue is reachable by the product graph. That changes the design of the rest of the project, and we could not have known it without building the cleaning and analysis stages first.</p>
+<p>Our next steps, in order, are to generate the synthetic inventory file from the observed sales speed, build the dbt staging, dimension and fact models with grain tests, load them into BigQuery, build the two-level graph with the ranking rules from Section 9, and serve the results through FastAPI.</p>
+
+<h2>15. References</h2>
+<ol class="refs">
+  <li>R. Agrawal and R. Srikant, "Fast algorithms for mining association rules," in <i>Proc. 20th Int. Conf. Very Large Data Bases (VLDB)</i>, Santiago, Chile, 1994, pp. 487&ndash;499.</li>
+  <li>G. Linden, B. Smith, and J. York, "Amazon.com recommendations: Item-to-item collaborative filtering," <i>IEEE Internet Computing</i>, vol. 7, no. 1, pp. 76&ndash;80, 2003, doi: 10.1109/MIC.2003.1167344.</li>
+  <li>B. Sarwar, G. Karypis, J. Konstan, and J. Riedl, "Item-based collaborative filtering recommendation algorithms," in <i>Proc. 10th Int. Conf. World Wide Web (WWW)</i>, Hong Kong, 2001, pp. 285&ndash;295.</li>
+  <li>"Recommending related products using graph neural networks in directed graphs," <i>arXiv preprint</i> arXiv:2211.11583, 2022. [Online]. Available: https://arxiv.org/abs/2211.11583</li>
+  <li>"Session-based recommendations for e-commerce with graph-based data modeling," <i>Applied Sciences</i>, vol. 13, no. 1, art. 394, 2023, doi: 10.3390/app13010394.</li>
+  <li>S. Melnik, A. Gubarev, J. J. Long, G. Romer, S. Shivakumar, M. Tolton, and T. Vassilakis, "Dremel: Interactive analysis of web-scale datasets," <i>Proc. VLDB Endowment</i>, vol. 3, no. 1&ndash;2, pp. 330&ndash;339, 2010.</li>
+  <li>M. Armbrust, A. Ghodsi, R. Xin, and M. Zaharia, "Lakehouse: A new generation of open platforms that unify data warehousing and advanced analytics," in <i>Proc. 11th Conf. Innovative Data Systems Research (CIDR)</i>, 2021.</li>
+  <li>Apache Software Foundation, "Apache Parquet file format specification." [Online]. Available: https://parquet.apache.org/docs/file-format/ [Accessed: 11-Sep-2026]</li>
+  <li>G. D. Linden, J. A. Jacobi, and E. A. Benson, "Collaborative recommendations using item-to-item similarity mappings," U.S. Patent 6,266,649 B1, Jul. 24, 2001.</li>
+  <li>J. A. Jacobi, E. A. Benson, and G. D. Linden, "Personalized recommendations of items represented within a database," U.S. Patent 7,113,917 B2, Sep. 26, 2006.</li>
+  <li>Olist, "Brazilian E-Commerce Public Dataset by Olist," Kaggle. [Online]. Available: https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce [Accessed: 11-Sep-2026]</li>
+  <li>NetworkX Developers, "NetworkX documentation, version 3.4.2." [Online]. Available: https://networkx.org/documentation/stable/ [Accessed: 11-Sep-2026]</li>
+</ol>
+
+<h2 class="pb">Appendix A. Project tracker</h2>
+<p>The tracker below is the sheet refined in sync with this report. Sprints 1 to 3 are complete, sprint 4 covers this reporting period, and sprints 5 to 9 are planned at task level so each row has a clear finish condition.</p>
+<table>
+  <tr><th>Sprint</th><th>Dates</th><th>Deliverable</th><th>Module dates</th><th>Status</th><th>Pri.</th></tr>
+  <tr><td>1 Foundation</td><td>14-08-26 to 16-08-26</td><td>Problem statement finalisation</td><td>14-08 to 16-08</td><td>Completed</td><td>High</td></tr>
+  <tr><td></td><td></td><td>Dataset selection</td><td>16-08 to 16-08</td><td>Completed</td><td>Medium</td></tr>
+  <tr><td>2 Market study</td><td>21-08-26 to 23-08-26</td><td>Technical report (Lab 2)</td><td>21-08 to 23-08</td><td>Completed</td><td>High</td></tr>
+  <tr><td></td><td></td><td>Module architecture and dependency mapping</td><td>22-08 to 23-08</td><td>Completed</td><td>High</td></tr>
+  <tr><td>3 Architecture</td><td>24-08-26 to 03-09-26</td><td>Final Lab 3 report</td><td>24-08 to 31-08</td><td>Completed</td><td>High</td></tr>
+  <tr><td></td><td></td><td>Tracker requirements and coding standards</td><td>31-08 to 03-09</td><td>Completed</td><td>High</td></tr>
+  <tr><td>4 Data foundation</td><td>31-08-26 to 11-09-26</td><td>Source identification and raw preservation</td><td>31-08 to 02-09</td><td>Completed</td><td>High</td></tr>
+  <tr><td></td><td></td><td>Ingestion, validation and manifest</td><td>02-09 to 04-09</td><td>Completed</td><td>High</td></tr>
+  <tr><td></td><td></td><td>Storage layer with two backends</td><td>04-09 to 06-09</td><td>Completed</td><td>High</td></tr>
+  <tr><td></td><td></td><td>Cleaning rules and type standardisation</td><td>05-09 to 08-09</td><td>Completed</td><td>High</td></tr>
+  <tr><td></td><td></td><td>Quality gates and revenue invariant</td><td>07-09 to 09-09</td><td>Completed</td><td>High</td></tr>
+  <tr><td></td><td></td><td>Profiling measures and co-occurrence graph</td><td>08-09 to 10-09</td><td>Completed</td><td>Medium</td></tr>
+  <tr><td></td><td></td><td>Initial visualisation (five figures)</td><td>10-09 to 11-09</td><td>Completed</td><td>Medium</td></tr>
+  <tr><td></td><td></td><td>Product and category ranking views</td><td>10-09 to 11-09</td><td>Carried Over</td><td>Medium</td></tr>
+  <tr><td></td><td></td><td>Seller ranking views</td><td>11-09 to 11-09</td><td>Carried Over</td><td>Low</td></tr>
+  <tr><td>5 Review fixes</td><td>13-09-26 to 19-09-26</td><td>Citations, references, traceability, graph study, codes</td><td>13-09 to 19-09</td><td>In Progress</td><td>High</td></tr>
+  <tr><td>6 Warehouse</td><td>20-09-26 to 30-09-26</td><td>Synthetic inventory generator, dbt models, BigQuery load</td><td>20-09 to 30-09</td><td>Planning</td><td>High</td></tr>
+  <tr><td>7 Graph and API</td><td>01-10-26 to 12-10-26</td><td>Two-level graph, ranking, evaluation, FastAPI endpoints</td><td>01-10 to 12-10</td><td>Planning</td><td>High</td></tr>
+  <tr><td>8 Inventory and dashboard</td><td>13-10-26 to 24-10-26</td><td>Velocity models, restock rules, dashboard sections</td><td>13-10 to 24-10</td><td>Planning</td><td>High</td></tr>
+  <tr><td>9 Orchestration</td><td>25-10-26 to 04-11-26</td><td>Airflow DAG, end-to-end run, final report</td><td>25-10 to 04-11</td><td>Planning</td><td>High</td></tr>
+</table>
+<p class="cap">Table 16. Project tracker, refined in sync with this report. Across the full plan of 43 tasks, 18 are complete (42%).</p>
+
+</body></html>

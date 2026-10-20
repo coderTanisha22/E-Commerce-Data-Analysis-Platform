@@ -1,0 +1,44 @@
+Sprint_No.,Sprint_Start_Date,Sprint_End_Date,Tentative Deliverables,Module_Start,Module_End,Status,Responsible,Priority,Remarks
+1 Foundation,14-08-26,16-08-26,Problem Statement finalization,14-08-26,16-08-26,Completed,All,High,"Finalized problem statement, project scope and initial architecture"
+,,,Dataset Selection,16-08-26,16-08-26,Completed,All,Medium,"Olist selected; 9 CSVs, 1,550,922 rows; data sources, formats and quality reviewed"
+2 Technical analysis of existing market solutions,21-08-26,23-08-26,Technical report (Lab 2),21-08-26,23-08-26,Completed,All,High,"Reviewed Shopify, BigQuery, Databricks, inventory tools. REWORK: in-text citations and IEEE refs required -> Sprint 5"
+,,,Module architecture and dependency mapping,22-08-26,23-08-26,Completed,All,High,Modules 1.x-2.x defined. REWORK: reviewer asked for task-grain decomposition -> Sprint 5
+3 Data Engineering Architecture and Requirements,24-08-26,03-09-26,Final Lab 3 report,24-08-26,31-08-26,Completed,All,High,"Batch pipeline design: Airflow, Python, storage, Spark, dbt, BigQuery, NetworkX, FastAPI"
+,,,Project Tracker requirements (FR/NFR + coding standards),31-08-26,03-09-26,Completed,All,High,"10 FR, 9 NFR, 19 coding rules. REWORK: semantic codes required -> Sprint 5"
+4 Data Foundation,04-09-26,12-09-26,Source identification and raw preservation (1.1-1.2),04-09-26,05-09-26,Completed,All,High,"6 table contracts declared with columns, keys, dtypes and quirk notes; source directory kept read-only"
+,,,Data ingestion and manifest (1.3-1.5),05-09-26,07-09-26,Completed,All,High,"347,649 rows landed byte-identical; SHA-256 manifest; idempotency proven across reruns"
+,,,"Storage layer, dual backend (2.6)",07-09-26,08-09-26,Completed,All,High,StorageBackend interface with local and MinIO implementations; identical key layout verified on both
+,,,Data cleaning and validation (2.1-2.5),08-09-26,10-09-26,Completed,All,High,"18 quality gates; 112,650 unit rows -> 102,425 order lines; revenue invariant R$ 13,591,643.70 preserved"
+,,,Analytical data preparation (2.7),10-09-26,11-09-26,In Progress,All,Medium,order_products and product_cooccurrence built; dbt models not started -> CARRY-OVER to Sprint 6
+,,,"Order, product, seller and relationship analysis (2.8-2.11)",10-09-26,11-09-26,Completed,All,Medium,"Revenue R$ 13.07M, AOV R$ 136.91, 4,058 pairs, 14.8% graph coverage. Ranking views deferred"
+,,,Initial visualization (2.12),11-09-26,12-09-26,Completed,All,Medium,"5 figures on one visual system, written from profile.json so prose and charts cannot diverge"
+,,,Coding standards and toolchain,04-09-26,12-09-26,Completed,All,High,19/19 tracker rules documented and enforced by make check; 24 unit tests; clean_all refactored 105 -> 29 lines
+5 Review Remediation and Graph Parameterisation,13-09-26,19-09-26,"In-text citations and IEEE references (FB-1, FB-2)",13-09-26,14-09-26,In Progress,All,High,9 anchor positions mapped; 2 entries need author lists from source; Stocky marketplace URL replaced; Kafka claim must be sourced or dropped
+,,,Market analysis to architecture traceability (FB-3),14-09-26,15-09-26,Completed,All,High,11-row table mapping each market finding to one named architecture decision and the artefact holding it
+,,,Product graph parameter study P1-P7 (FB-4),13-09-26,16-09-26,Completed,All,High,"3 assumptions overturned. Support rule co>=2 and pop>=5; tie-break (order_count, lift, product_id) cut ambiguity 62% -> 2%"
+,,,Semantic FR/NFR recoding (FB-5),16-09-26,17-09-26,Completed,All,Medium,22 requirements recoded by concern; 3 new requirements added; FR-STO-01 reworded to end the MinIO contradiction
+,,,Task-grain module decomposition (FB-6),17-09-26,18-09-26,Completed,All,High,Exposed a real dependency inversion: synthetic inventory is a source and must precede the dbt models
+,,,Essence card assessments (FB-7),18-09-26,19-09-26,Completed,All,Medium,Two dated assessments with evidence; Requirements stuck at Bounded pending the document reconciliation below
+,,,Reconcile the five design documents,18-09-26,19-09-26,Planning,All,High,"Storage said MinIO in 2 docs and local filesystem in 2; NFR-LIN-02 names Spark, not implemented. Fixing both advances Requirements to Coherent"
+6 Synthetic Inventory and Warehouse Modelling,20-09-26,30-09-26,Per-pair sales velocity in the declared window (3.1.1),20-09-26,20-09-26,Planning,All,High,Extract profile_velocity into a reusable module; window 2017-02-01 to 2018-08-31 as a named constant
+,,,Synthetic inventory generator (3.1.2-3.1.4),21-09-26,23-09-26,Planning,All,High,"current_quantity as N days of cover derived from each pair's own velocity, so the restock rule can actually fire"
+,,,Inventory contract and ingestion (3.1.5),23-09-26,24-09-26,Planning,All,High,"34,448 rows at seller_id + product_id grain; labelled synthetic throughout"
+,,,dbt staging models (3.2.1),24-09-26,25-09-26,Planning,All,High,"Over processed Parquet; lowercase snake_case, named CTEs, no SELECT *"
+,,,Dimensions with uniqueness tests (3.2.2),26-09-26,27-09-26,Planning,All,High,"dim_products, dim_customers, dim_sellers, dim_dates. Date spine must cover 140 calendar days with zero orders"
+,,,Facts with grain tests (3.2.3),28-09-26,29-09-26,Planning,All,High,fct_orders at order-product-line grain with derived quantity; grain test per fact table
+,,,BigQuery load and validation,29-09-26,30-09-26,Planning,All,High,Verify sandbox default table expiry before committing the warehouse to it
+7 Product Graph and API,01-10-26,12-10-26,fct_product_cooccurrence with lift and confidence,01-10-26,03-10-26,Planning,All,High,"Adds lift, conf_a_to_b, conf_b_to_a so the undirected store keeps the asymmetry (P3, P6)"
+,,,Two-tier graph build,03-10-26,06-10-26,Planning,All,High,Product tier serves 214 products; category tier covers 98.2% of catalogue as fallback (FR-GRF-03)
+,,,Deterministic neighbour ranking,06-10-26,07-10-26,Planning,All,High,"Order by (order_count, lift, product_id) per P5; satisfies NFR-GRF-02 and makes API output stable"
+,,,Holdout evaluation harness,07-10-26,09-10-26,Planning,All,High,"2018-06-01 split; report coverage and hit rate as dbt tests so a regression fails CI, not the demo (NFR-GRF-03)"
+,,,FastAPI endpoints,09-10-26,11-10-26,Planning,All,High,"/health, /products/{id}, /products/{id}/recommendations, POST /search; graph loaded once at startup"
+,,,Relationship-aware search,11-10-26,12-10-26,Planning,All,Medium,Category and attribute match only: the products table has no name or description text
+8 Inventory Analytics and Dashboard,13-10-26,24-10-26,Velocity and days_of_inventory models,13-10-26,15-10-26,Planning,All,High,Denominator fixed to the declared window and published in the model so the rate is reproducible
+,,,Restock priority rules,15-10-26,17-10-26,Planning,All,High,Compare against reorder_point AND lead_time_days; zero-sales pairs excluded safely (NFR-INV-01)
+,,,Dashboard: Overview and Sales,18-10-26,20-10-26,Planning,All,Medium,"Warehouse-derived metrics only, so dashboard numbers cannot drift from SQL definitions"
+,,,Dashboard: Inventory and Restocking,20-10-26,22-10-26,Planning,All,Medium,Must use real velocity figures; the 6.0 units/day illustration is 4.5x the observed maximum
+,,,Dashboard: Product Insights and Operations,22-10-26,23-10-26,Planning,All,Low,Requires reviews promoted from Optional to Must; 99.2% of orders carry a review score
+,,,API and dashboard test pass,23-10-26,24-10-26,Planning,All,High,"Status codes, response schemas, and displayed metrics reconciled against warehouse queries"
+9 Orchestration and Integration,25-10-26,04-11-26,Airflow DAG with fan-out,25-10-26,28-10-26,Planning,All,High,Fan out after validate_models: graph and inventory branches are independent and must not run in series
+,,,End-to-end pipeline run,29-10-26,31-10-26,Planning,All,High,"One trigger produces every downstream artefact; tasks exchange locations, never DataFrames"
+,,,Final report and demo,01-11-26,04-11-26,Planning,All,High,13-step demo flow; lead with the coverage finding rather than a single working product
