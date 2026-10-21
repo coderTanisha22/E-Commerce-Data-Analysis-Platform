@@ -1,7 +1,7 @@
-.PHONY: help install check fmt lint test pipeline ingest clean inventory validate-inventory analyse bench bench-report minio-up minio-down
+.PHONY: help install check fmt lint test pipeline ingest clean inventory validate-inventory analyse bench bench-report warehouse warehouse-reconcile minio-up minio-down
 
-PY := ./.venv/bin/python
 VENV := ./.venv/bin
+PY := $(VENV)/python
 
 help:
 	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "};{printf "  %-14s %s\n",$$1,$$2}'
@@ -47,6 +47,13 @@ bench:  ## run the optimisation study -> results.json + report + figures
 
 bench-report:  ## re-render the optimisation report from existing results.json
 	$(PY) -m ecom.cli bench --report-only
+
+warehouse:  ## processed -> dbt warehouse on DuckDB (14 models, 35 tests)
+	cd dbt_warehouse && ../$(VENV)/dbt deps --profiles-dir .
+	cd dbt_warehouse && ../$(VENV)/dbt build --profiles-dir .
+
+warehouse-reconcile:  ## check warehouse totals against the pipeline that feeds it
+	cd dbt_warehouse && ../$(VENV)/python scripts/local_validate.py --data-dir ../data
 
 minio-up:  ## start MinIO, then set ECOM_STORAGE_BACKEND=minio
 	docker compose up -d minio

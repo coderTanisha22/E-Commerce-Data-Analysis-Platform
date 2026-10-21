@@ -1,6 +1,13 @@
-select d as date_day,
-       extract(year from d) as year,
-       extract(month from d) as month,
-       extract(dayofweek from d) as day_of_week,
-       format_date('%Y-%m', d) as year_month
-from unnest(generate_date_array('2016-01-01','2018-12-31')) as d
+-- Calendar dimension spanning the whole Olist timeline, not just the
+-- analytical window, so a date filter can be applied in the mart layer rather
+-- than being baked into the dimension.
+with spine as (
+  {{ date_spine_days('2016-01-01', '2018-12-31') }}
+)
+select
+  date_day,
+  extract(year from date_day) as year,
+  extract(month from date_day) as month,
+  {{ day_of_week('date_day') }} as day_of_week,
+  {{ year_month('date_day') }} as year_month
+from spine

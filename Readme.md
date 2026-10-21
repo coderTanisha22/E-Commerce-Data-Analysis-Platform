@@ -48,6 +48,11 @@ src/ecom/
     run_bench.py           Benchmark orchestration (the only I/O here)
     report.py              Renders results.json as Markdown and figures
 tests/                   pytest suite for both paths
+dbt_warehouse/           dbt project: staging → intermediate → marts
+  models/                  6 staging · 1 intermediate · 7 marts
+  macros/portability.sql   everything that differs between BigQuery and DuckDB
+  tests/                   5 SQL assertions beyond the schema tests
+  scripts/                 BigQuery loader + independent pandas validator
 docs/
   CODING_STANDARDS.md    Conventions, implementing the project tracker's rules
   PROJECT_STATUS.md      Current state, measured findings, open decisions
@@ -91,6 +96,7 @@ make clean         # raw → processed  (pandas)
 make inventory     # generate the synthetic inventory table
 make analyse       # profiling metrics + figures
 make bench         # optimisation study → results.json + report + figures
+make warehouse     # processed → dbt warehouse on DuckDB (14 models, 35 tests)
 make check         # ruff + black + pytest
 ```
 
@@ -137,5 +143,9 @@ Every path is an environment variable with a local-filesystem default.
 - `reports/benchmarks/optimisation_report.md` — the measured optimisation
   study: strategy comparisons, the fragmentation matrix, the selectivity
   crossover and the scaling curves.
+- `dbt_warehouse/docs/contracts_alignment.md` — how the warehouse relates to
+  the pipeline, including the one known divergence in the co-occurrence count.
+- `dbt_warehouse/docs/implementation_status.md` — what is verified locally and
+  what still needs a BigQuery run.
 - `reports/synthetic_inventory_validation.md` — how the synthetic data was
   validated.

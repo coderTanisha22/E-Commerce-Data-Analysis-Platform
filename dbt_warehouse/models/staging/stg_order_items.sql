@@ -1,10 +1,10 @@
 select
-  cast(order_id as string) as order_id,
-  safe_cast(order_item_id as int64) as order_item_id,
-  cast(product_id as string) as product_id,
-  cast(seller_id as string) as seller_id,
-  safe_cast(shipping_limit_date as timestamp) as shipping_limit_date,
-  safe_cast(price as numeric) as price,
-  safe_cast(freight_value as numeric) as freight_value,
-  _run_date, _source_hash, _loaded_at
+  cast(order_id as {{ dbt.type_string() }}) as order_id,
+  {{ dbt.safe_cast('order_item_id', dbt.type_int()) }} as order_item_id,
+  cast(product_id as {{ dbt.type_string() }}) as product_id,
+  cast(seller_id as {{ dbt.type_string() }}) as seller_id,
+  {{ dbt.safe_cast('shipping_limit_date', dbt.type_timestamp()) }} as shipping_limit_date,
+  {{ dbt.safe_cast('price', dbt.type_numeric()) }} as price,
+  {{ dbt.safe_cast('freight_value', dbt.type_numeric()) }} as freight_value,
+  {{ provenance_columns() }}
 from {{ source('olist_cleaned', 'olist_order_items_dataset') }}

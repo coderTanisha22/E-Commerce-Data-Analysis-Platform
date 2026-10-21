@@ -41,23 +41,20 @@ Metabase/React (dashboard) · Docker.
 | Analysis | Done | profile.json, co-occurrence graph, 8 figures |
 | Coding standards | Done | 19/19 tracker rules, enforced by `make check` |
 | Optimisation study | Done | 17 strategies, 4 layouts, 4 sweeps, `make bench` |
+| dbt warehouse | Done (local) | 14 models, 35 tests, all passing on DuckDB — `make warehouse` |
 
 **97 tests passing** (2 skipped, Spark) · ruff and black clean · 41 source
 modules · ~6,700 LoC.
 
-### Written but NOT merged into main
-
-**The dbt warehouse exists on the `origin/warehouse` branch** (`ebe74a9`, one
-commit on top of main's tip) and is *not* reachable from `main`. It holds a
-complete dbt project: 6 staging models, 1 intermediate, 7 marts, 5 custom SQL
-assertions, a BigQuery loader, a DuckDB local validator and its own docs.
-
-It does not merge cleanly as-is — see §6, "The warehouse grain conflict". No
-cloud run is claimed by the package itself.
-
 ### Not started
 
 FastAPI · Metabase dashboard · Airflow DAG.
+
+**No BigQuery run has been made.** The warehouse's `bigquery` target, the
+partition/cluster specification on `fct_order_items` and
+`scripts/load_to_bigquery.py` are written but unexecuted — there is no GCP
+project attached. The local DuckDB build proves the SQL, the grain and the
+invariants; it does not prove the BigQuery dialect or the loader.
 
 The **optimisation workstream is now built and measured** — see §7.
 
@@ -144,6 +141,8 @@ make pipeline           # ingest -> clean -> inventory -> analyse
 make check              # ruff + black + 97 tests
 make inventory          # regenerate synthetic inventory only
 make bench              # optimisation study -> results.json + report + figures
+make warehouse          # processed -> dbt warehouse on DuckDB (14 models, 35 tests)
+make warehouse-reconcile # independent check of warehouse totals vs the pipeline
 make minio-up           # optional: start MinIO, then ECOM_STORAGE_BACKEND=minio
 ```
 
@@ -160,6 +159,7 @@ src/ecom/
   synthetic/       inventory generator + validation
   analysis/        profiling metrics + figures
   bench/           optimisation study: harness, workloads, layouts, sweeps
+dbt_warehouse/     dbt project: staging -> intermediate -> marts, DuckDB + BigQuery
   cli.py           the only module allowed argparse and print
 tests/             97 tests
 docs/CODING_STANDARDS.md
@@ -189,7 +189,7 @@ reports/           generated reports, figures, slide charts
 | Lab 2 has no in-text citations | IEEE list drafted; 9 anchor positions mapped. Two references still need author names. |
 | Kafka claim in Lab 2 §I | Unsupported by the cited source. Drop it or source it. |
 | Canva deck wording | Slide 6 needs: "cancelled **and unavailable**", `ceil(...)` + min 1 on the reorder point, and "(min 30)" on the rate. |
-| **The warehouse grain conflict** | `origin/warehouse` is built against a different contract than `main` produces. Two mismatches, both real. **(1) Grain:** `fct_order_items` declares one row per (`order_id`, `order_item_id`) and its docs say explicitly "do not aggregate item rows into order-product-seller lines" and "does not invent a `quantity` column". That is exactly what `main`'s `derive_order_lines` does — 112,650 unit rows collapsed into 102,425 lines with a derived `quantity`. **(2) Source names:** `sources.yml` expects the 9 raw Olist table names (`olist_orders_dataset`, …) in BigQuery dataset `olist_cleaned`, i.e. the Spark path's output; `main`'s pandas path writes 6 tables named `orders`, `order_lines`, `order_products`, `products`, `customers`, `sellers`. Someone must decide which grain is canonical before these merge. |
+| **Co-occurrence counts non-delivered orders** | **Open decision, needs a call.** The warehouse counts co-occurrence over delivered orders only and reports **4,022 pairs**; `src/ecom/analysis/profile.py` counts every order status and reports **4,058**. The 36-pair gap is evidenced solely by orders that were never delivered. The warehouse is the internally consistent one — the pipeline already filters its sales and velocity metrics to delivered but not its co-occurrence, so it mixes conventions. Aligning the pipeline would change figures already published in `reports/Lab45_9.pdf` and the Canva deck (4,058 pairs, 3.28% multi-product, the graph shape stats), which is why it has **not** been changed unilaterally. |
 
 ---
 

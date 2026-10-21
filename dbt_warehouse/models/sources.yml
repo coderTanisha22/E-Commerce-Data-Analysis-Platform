@@ -1,15 +1,53 @@
 version: 2
+
 sources:
   - name: olist_cleaned
-    description: Cleaned Parquet tables loaded by the warehouse loader from Person A's accepted processed zone.
+    description: >
+      Cleaned tables as declared in docs/contracts.md. On BigQuery these are
+      real tables in the `olist_cleaned` dataset, written by
+      scripts/load_to_bigquery.py with provenance columns attached.
+
+      The local DuckDB target reads the pandas pipeline's processed Parquet
+      instead, via the per-table `external_location` below. The two layers
+      carry the same rows under different names: the contract names each table
+      after its original Olist export, while `src/ecom/cleaning` names it after
+      the logical table. `meta.external_location` is read only by dbt-duckdb
+      and ignored by dbt-bigquery, so one source file serves both targets.
     schema: olist_cleaned
     tables:
+
       - name: olist_orders_dataset
+        description: One row per order, every status retained.
+        meta:
+          external_location: "read_parquet('{{ var('processed_dir') }}/orders.parquet')"
+
       - name: olist_order_items_dataset
+        description: >
+          One row per (order_id, order_item_id). This is the finest grain the
+          source provides and the grain fct_order_items is built at. The
+          pipeline also publishes the aggregated order_lines beside it; the
+          warehouse deliberately does not read that one, because an item key
+          cannot be recovered once the rows are collapsed.
+        meta:
+          external_location: "read_parquet('{{ var('processed_dir') }}/order_items.parquet')"
+
       - name: olist_products_dataset
+        description: Product catalogue. No name or description text exists in Olist.
+        meta:
+          external_location: "read_parquet('{{ var('processed_dir') }}/products.parquet')"
+
       - name: olist_customers_dataset
+        meta:
+          external_location: "read_parquet('{{ var('processed_dir') }}/customers.parquet')"
+
       - name: olist_sellers_dataset
-      - name: olist_order_payments_dataset
-      - name: olist_order_reviews_dataset
-      - name: olist_geolocation_dataset
+        meta:
+          external_location: "read_parquet('{{ var('processed_dir') }}/sellers.parquet')"
+
       - name: product_category_name_translation
+        description: >
+          Covers 71 of the 73 categories present, so every join to it must be a
+          LEFT join. Read from the raw zone because the cleaning stage folds
+          the translation into products rather than republishing it.
+        meta:
+          external_location: "read_csv_auto('{{ var('raw_dir') }}/category_translation.csv')"

@@ -102,6 +102,13 @@ def _apply_transforms(raw: dict[str, pd.DataFrame]) -> dict[str, pd.DataFrame]:
     order_lines = derive_order_lines(raw["order_items"])
     return {
         "orders": flag_order_status(raw["orders"]),
+        # Published at its source grain, one row per (order_id, order_item_id),
+        # alongside the aggregated order_lines derived from it. The warehouse
+        # builds its fact at this grain because an item key cannot be recovered
+        # once rows are collapsed, while the analysis needs the aggregate and
+        # its explicit quantity. Keeping both means neither consumer has to
+        # undo the other's transform.
+        "order_items": raw["order_items"],
         "order_lines": order_lines,
         "order_products": build_order_products(order_lines),
         "products": attach_english_category(
@@ -117,6 +124,10 @@ def _gate_processed(out: dict[str, pd.DataFrame]) -> list[CheckResult]:
     results = [
         check_unique_key(
             out["order_lines"], "order_lines", ("order_id", "product_id", "seller_id")
+        ),
+        check_unique_key(out["order_items"], "order_items", ("order_id", "order_item_id")),
+        check_no_nulls(
+            out["order_items"], "order_items", ("order_id", "order_item_id", "product_id")
         ),
         check_unique_key(out["order_products"], "order_products", ("order_id", "product_id")),
         check_no_nulls(out["products"], "products", ("product_category_english",)),
@@ -141,6 +152,10 @@ def _assert_revenue_preserved(order_items: pd.DataFrame, order_lines: pd.DataFra
     derived = float(order_lines["line_revenue"].sum())
     if abs(source - derived) > 0.01:
         raise ValueError(f"revenue changed during line derivation: {source:.2f} -> {derived:.2f}")
+    # The same total must hold at both published grains, because the warehouse
+    # aggregates order_items while the analysis reads order_lines. If these ever
+    # disagreed, two dashboards built on one pipeline would report different
+    # revenue and nothing would say which was wrong.
     logger.info("revenue invariant holds: R$ %.2f preserved", derived)
     return derived
 

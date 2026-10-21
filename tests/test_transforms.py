@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pandas as pd
+import pytest
 
 from ecom.cleaning.transforms import (
     attach_english_category,
@@ -91,3 +92,29 @@ def test_transforms_do_not_mutate_their_input(order_items: pd.DataFrame) -> None
     derive_order_lines(order_items)
     trim_whitespace(order_items)
     pd.testing.assert_frame_equal(order_items, before)
+
+
+def test_order_items_is_published_at_source_grain(order_items: pd.DataFrame) -> None:
+    """The warehouse builds its fact on the item key, which the aggregate loses.
+
+    ``derive_order_lines`` collapses (order_id, product_id, seller_id), so
+    ``order_item_id`` is gone from its output. The cleaned item-grain table is
+    published alongside it precisely so a downstream consumer does not have to
+    undo that aggregation -- and it cannot, because the key is not recoverable.
+    """
+    lines = derive_order_lines(order_items)
+    assert "order_item_id" not in lines.columns
+    assert "order_item_id" in order_items.columns
+    assert not order_items.duplicated(["order_id", "order_item_id"]).any()
+
+
+def test_both_published_grains_carry_the_same_revenue(order_items: pd.DataFrame) -> None:
+    """Two grains, one revenue total.
+
+    The warehouse aggregates order_items while the analysis reads order_lines.
+    If these diverged, two dashboards built on one pipeline would report
+    different revenue and nothing would say which was wrong.
+    """
+    lines = derive_order_lines(order_items)
+    assert lines["line_revenue"].sum() == pytest.approx(order_items["price"].sum())
+    assert lines["quantity"].sum() == len(order_items)
