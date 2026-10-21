@@ -40,7 +40,7 @@ Metabase/React (dashboard) · Docker.
 | Synthetic inventory | Done | 33,787 rows, seeded, validated |
 | Analysis | Done | profile.json, co-occurrence graph, 8 figures |
 | Coding standards | Done | 19/19 tracker rules, enforced by `make check` |
-| Optimisation study | Done | 17 strategies, 4 layouts, 4 sweeps, `make bench` |
+| Optimisation study | Done | 18 strategies, 4 layouts, 4 sweeps, `make bench` |
 | dbt warehouse | Done (local) | 14 models, 35 tests, all passing on DuckDB — `make warehouse` |
 
 **97 tests passing** (2 skipped, Spark) · ruff and black clean · 41 source
@@ -257,7 +257,7 @@ is compared against the baseline's, and a faster strategy that returns a
 different answer is reported as rejected, never as a win.** This caught two
 real defects (below).
 
-### Strategy comparison — 5 operations, 17 implementations
+### Strategy comparison — 5 operations, 18 implementations
 
 Co-occurrence self-join written five ways (nested loop / hash join / sort-merge
 / sparse `BᵀB` / SQL on DuckDB) mapping to the lecture's J1–J4; plus CSV row
