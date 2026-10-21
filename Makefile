@@ -49,6 +49,7 @@ bench-report:  ## re-render the optimisation report from existing results.json
 	$(PY) -m ecom.cli bench --report-only
 
 warehouse:  ## processed -> dbt warehouse on DuckDB (14 models, 35 tests)
+	@mkdir -p dbt_warehouse/.duckdb   # gitignored, so absent on a fresh clone
 	cd dbt_warehouse && ../$(VENV)/dbt deps --profiles-dir .
 	cd dbt_warehouse && ../$(VENV)/dbt build --profiles-dir .
 
