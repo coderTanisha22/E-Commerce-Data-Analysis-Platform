@@ -1,0 +1,80 @@
+﻿version: 2
+models:
+  - name: stg_orders
+    columns:
+      - name: order_id
+        tests: [not_null, unique]
+      - name: customer_id
+        tests: [not_null]
+  - name: stg_order_items
+    columns:
+      - name: order_id
+        tests: [not_null]
+      - name: order_item_id
+        tests: [not_null]
+      - name: product_id
+        tests: [not_null]
+      - name: seller_id
+        tests: [not_null]
+  - name: stg_products
+    columns:
+      - name: product_id
+        tests: [not_null, unique]
+  - name: dim_products
+    columns:
+      - name: product_id
+        tests: [not_null, unique]
+  - name: dim_customers
+    columns:
+      - name: customer_id
+        tests: [not_null, unique]
+  - name: dim_sellers
+    columns:
+      - name: seller_id
+        tests: [not_null, unique]
+  - name: fct_order_items
+    description: One row per source order item line.
+    columns:
+      - name: order_id
+        tests: [not_null]
+      - name: order_item_id
+        tests: [not_null]
+      - name: product_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_products')
+                field: product_id
+      - name: seller_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_sellers')
+                field: seller_id
+      - name: customer_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_customers')
+                field: customer_id
+  - name: int_order_products
+    columns:
+      - name: order_id
+        tests: [not_null]
+      - name: product_id
+        tests: [not_null]
+  - name: product_sales_summary
+    columns:
+      - name: product_id
+        tests: [not_null, unique]
+  - name: fct_product_cooccurrence
+    columns:
+      - name: product_a
+        tests: [not_null]
+      - name: product_b
+        tests: [not_null]
+      - name: order_count
+        tests: [not_null]

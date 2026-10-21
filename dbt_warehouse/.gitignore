@@ -1,0 +1,9 @@
+target/
+dbt_packages/
+logs/
+profiles.yml
+.env
+*.key.json
+docs/load_lineage_*.json
+docs/results.json
+docs/local_validation_results.json
