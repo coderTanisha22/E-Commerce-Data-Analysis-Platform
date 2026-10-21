@@ -24,7 +24,7 @@ def configure(level: str = "INFO") -> None:
         level: Any name accepted by ``logging.getLevelName``.
     """
     root = logging.getLogger()
-    if any(getattr(h, "_ecom_handler", False) for h in root.handlers):
+    if any(getattr(handler, "_ecom_handler", False) for handler in root.handlers):
         root.setLevel(level.upper())
         return
 

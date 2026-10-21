@@ -92,13 +92,13 @@ def validate_against_contract(data: bytes, contract: TableContract) -> tuple[int
             halt a batch, while a missing column silently breaks every join.
     """
     header = _read_header(data)
-    missing = [c for c in contract.columns if c not in header]
+    missing = [column for column in contract.columns if column not in header]
     if missing:
         raise IngestionError(
             f"table {contract.name!r} is missing declared columns {missing}; found {header}"
         )
 
-    extra = [c for c in header if c not in contract.columns]
+    extra = [column for column in header if column not in contract.columns]
     if extra:
         logger.warning("table %s has undeclared extra columns %s", contract.name, extra)
 
@@ -183,15 +183,17 @@ def ingest_all(
     source_dir = settings.resolve(settings.source_dir)
 
     logger.info("ingesting %d tables from %s", len(contracts), source_dir)
-    entries = [ingest_table(c, storage=storage, source_dir=source_dir) for c in contracts]
+    entries = [
+        ingest_table(contract, storage=storage, source_dir=source_dir) for contract in contracts
+    ]
 
     manifest: dict[str, object] = {
         "ingested_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "source_dir": str(source_dir),
         "storage": storage.describe(),
         "table_count": len(entries),
-        "total_rows": sum(e.rows for e in entries),
-        "tables": [asdict(e) for e in entries],
+        "total_rows": sum(entry.rows for entry in entries),
+        "tables": [asdict(entry) for entry in entries],
     }
     storage.put_bytes(MANIFEST_KEY, json.dumps(manifest, indent=2).encode())
     logger.info("manifest written: %d tables, %d rows", len(entries), manifest["total_rows"])

@@ -1,44 +1,56 @@
--- Delivered order-item lines per product over the global observation window.
+-- Grain: one row per product.
 --
 -- This model keeps the stricter delivered-only filter on purpose, unlike
 -- int_order_products. It reports realised sales, and an order still in flight
 -- is not money yet. Co-occurrence asks a different question -- did a customer
 -- choose these together -- which is answered as soon as the basket is placed.
 --
--- The rate is line count per day across the window actually observed in the
--- data, computed from min/max delivered purchase date rather than hardcoded,
--- so the figure stays correct if the source is refreshed.
-with delivered as (
-  select f.product_id, f.order_id, f.order_item_id, f.order_date, f.price
-  from {{ ref('fct_order_items') }} f
-  where lower(f.order_status) = 'delivered'
-),
-window_bounds as (
-  select min(order_date) as start_date, max(order_date) as end_date from delivered
-),
-product_sales as (
-  select
+-- The rate is line count per day over the window actually observed in the
+-- data, computed from the min and max delivered purchase date rather than
+-- hardcoded, so it stays correct if the source is refreshed.
+WITH delivered_lines AS (
+  SELECT
     product_id,
-    count(*) as delivered_item_line_count,
-    count(distinct order_id) as delivered_order_count,
-    sum(price) as delivered_gross_sales
-  from delivered
-  group by product_id
+    order_id,
+    order_item_id,
+    order_date,
+    price
+  FROM {{ ref('fct_order_items') }}
+  WHERE LOWER(order_status) = 'delivered'
+),
+
+observation_window AS (
+  SELECT
+    MIN(order_date) AS start_date,
+    MAX(order_date) AS end_date
+  FROM delivered_lines
+),
+
+sales_per_product AS (
+  SELECT
+    product_id,
+    COUNT(*)                   AS delivered_item_line_count,
+    COUNT(DISTINCT order_id)   AS delivered_order_count,
+    SUM(price)                 AS delivered_gross_sales
+  FROM delivered_lines
+  GROUP BY product_id
 )
-select
-  p.product_id,
-  coalesce(s.delivered_item_line_count, 0) as delivered_item_line_count,
-  coalesce(s.delivered_order_count, 0) as delivered_order_count,
-  coalesce(s.delivered_gross_sales, 0) as delivered_gross_sales,
-  b.start_date as observation_start_date,
-  b.end_date as observation_end_date,
-  case
-    when b.start_date is null then 0
-    else {{ safe_divide(
-           'coalesce(s.delivered_item_line_count, 0)',
-           dbt.datediff('b.start_date', 'b.end_date', 'day') ~ ' + 1'
+
+SELECT
+  products.product_id,
+  COALESCE(sales.delivered_item_line_count, 0)   AS delivered_item_line_count,
+  COALESCE(sales.delivered_order_count, 0)       AS delivered_order_count,
+  COALESCE(sales.delivered_gross_sales, 0)       AS delivered_gross_sales,
+  observation.start_date                         AS observation_start_date,
+  observation.end_date                           AS observation_end_date,
+  CASE
+    WHEN observation.start_date IS NULL THEN 0
+    ELSE {{ safe_divide(
+           'COALESCE(sales.delivered_item_line_count, 0)',
+           dbt.datediff('observation.start_date', 'observation.end_date', 'day') ~ ' + 1'
          ) }}
-  end as item_lines_per_day
-from {{ ref('dim_products') }} p
-left join product_sales s using (product_id)
-cross join window_bounds b
+  END AS item_lines_per_day
+FROM {{ ref('dim_products') }} AS products
+LEFT JOIN sales_per_product AS sales
+  ON products.product_id = sales.product_id
+CROSS JOIN observation_window AS observation

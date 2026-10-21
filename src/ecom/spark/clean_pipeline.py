@@ -88,7 +88,9 @@ def clean_table(dataframe, contract):
     working = flag_invalid_numeric_values(working, contract["numeric_columns"])
     working = flag_out_of_range_values(working, contract["range_columns"])
 
-    flag_columns = [c for c in working.columns if c.endswith(("_is_valid", "_cast_ok"))]
+    flag_columns = [
+        column for column in working.columns if column.endswith(("_is_valid", "_cast_ok"))
+    ]
     working = determine_row_validity(working, contract["required_columns"], flag_columns)
 
     clean_rows = working.filter("is_valid_row").drop(*flag_columns, "is_valid_row")
@@ -154,7 +156,9 @@ def main():
     run_date = sys.argv[1] if len(sys.argv) > 1 else date.today().isoformat()
     report = run_spark_cleaning(run_date)
 
-    failed_tables = [t for t in report["tables"] if t.get("status", "").startswith("fail")]
+    failed_tables = [
+        table for table in report["tables"] if table.get("status", "").startswith("fail")
+    ]
     if failed_tables:
         print(f"{len(failed_tables)} table(s) failed cleaning.", file=sys.stderr)
         sys.exit(1)

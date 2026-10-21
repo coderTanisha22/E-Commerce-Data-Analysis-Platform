@@ -1,8 +1,8 @@
-select
-  cast(customer_id as {{ dbt.type_string() }}) as customer_id,
-  cast(customer_unique_id as {{ dbt.type_string() }}) as customer_unique_id,
-  cast(customer_zip_code_prefix as {{ dbt.type_string() }}) as customer_zip_code_prefix,
-  cast(customer_city as {{ dbt.type_string() }}) as customer_city,
-  cast(customer_state as {{ dbt.type_string() }}) as customer_state,
+SELECT
+  CAST(customer_id AS {{ dbt.type_string() }})                AS customer_id,
+  CAST(customer_unique_id AS {{ dbt.type_string() }})         AS customer_unique_id,
+  CAST(customer_zip_code_prefix AS {{ dbt.type_string() }})   AS customer_zip_code_prefix,
+  CAST(customer_city AS {{ dbt.type_string() }})              AS customer_city,
+  CAST(customer_state AS {{ dbt.type_string() }})             AS customer_state,
   {{ provenance_columns() }}
-from {{ source('olist_cleaned', 'olist_customers_dataset') }}
+FROM {{ source('olist_cleaned', 'olist_customers_dataset') }}

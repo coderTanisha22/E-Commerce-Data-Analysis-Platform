@@ -24,9 +24,9 @@
   -#}
   {%- set p = (alias ~ '.') if alias else '' -%}
   {%- if target.type == 'duckdb' -%}
-    cast('{{ var("run_date", run_started_at.strftime("%Y-%m-%d")) }}' as date) as _run_date,
-    cast(null as {{ dbt.type_string() }}) as _source_hash,
-    {{ dbt.current_timestamp() }} as _loaded_at
+    CAST('{{ var("run_date", run_started_at.strftime("%Y-%m-%d")) }}' AS DATE) AS _run_date,
+    CAST(NULL AS {{ dbt.type_string() }}) AS _source_hash,
+    {{ dbt.current_timestamp() }} AS _loaded_at
   {%- else -%}
     {{ p }}_run_date, {{ p }}_source_hash, {{ p }}_loaded_at
   {%- endif -%}
@@ -36,10 +36,10 @@
 {% macro date_spine_days(start_date, end_date) %}
   {#- One row per calendar day between the two bounds, inclusive. -#}
   {%- if target.type == 'duckdb' -%}
-    select unnest(generate_series(date '{{ start_date }}', date '{{ end_date }}', interval 1 day))::date as date_day
+    SELECT UNNEST(generate_series(DATE '{{ start_date }}', DATE '{{ end_date }}', INTERVAL 1 DAY))::DATE AS date_day
   {%- else -%}
-    select d as date_day
-    from unnest(generate_date_array('{{ start_date }}', '{{ end_date }}')) as d
+    SELECT d AS date_day
+    FROM UNNEST(GENERATE_DATE_ARRAY('{{ start_date }}', '{{ end_date }}')) AS d
   {%- endif -%}
 {% endmacro %}
 
@@ -47,9 +47,9 @@
 {% macro year_month(column) %}
   {#- The 'YYYY-MM' partition label used throughout the project. -#}
   {%- if target.type == 'duckdb' -%}
-    strftime({{ column }}, '%Y-%m')
+    STRFTIME({{ column }}, '%Y-%m')
   {%- else -%}
-    format_date('%Y-%m', {{ column }})
+    FORMAT_DATE('%Y-%m', {{ column }})
   {%- endif -%}
 {% endmacro %}
 
@@ -57,9 +57,9 @@
 {% macro day_of_week(column) %}
   {#- Day index. DuckDB spells the field 'dow'; BigQuery spells it 'dayofweek'. -#}
   {%- if target.type == 'duckdb' -%}
-    extract(dow from {{ column }})
+    EXTRACT(DOW FROM {{ column }})
   {%- else -%}
-    extract(dayofweek from {{ column }})
+    EXTRACT(DAYOFWEEK FROM {{ column }})
   {%- endif -%}
 {% endmacro %}
 
@@ -67,5 +67,5 @@
 {% macro safe_divide(numerator, denominator) %}
   {#- Division that yields null rather than raising on a zero denominator.
       Portable in place of BigQuery's safe_divide(). -#}
-  ({{ numerator }} / nullif({{ denominator }}, 0))
+  ({{ numerator }} / NULLIF({{ denominator }}, 0))
 {% endmacro %}

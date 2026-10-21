@@ -71,7 +71,10 @@ def _load_raw_tables(
 ) -> dict[str, pd.DataFrame]:
     """Read every contracted Olist table out of the raw layer."""
     logger.info("loading raw layer (fast_reader=%s)", fast_reader)
-    return {c.name: _load_raw(storage, c, fast_reader=fast_reader) for c in con.OLIST_CONTRACTS}
+    return {
+        contract.name: _load_raw(storage, contract, fast_reader=fast_reader)
+        for contract in con.OLIST_CONTRACTS
+    }
 
 
 def _gate_source(raw: dict[str, pd.DataFrame]) -> list[CheckResult]:
@@ -80,7 +83,11 @@ def _gate_source(raw: dict[str, pd.DataFrame]) -> list[CheckResult]:
     products, sellers, customers = raw["products"], raw["sellers"], raw["customers"]
 
     results = [
-        *(check_unique_key(raw[c.name], c.name, c.key) for c in con.OLIST_CONTRACTS if c.key),
+        *(
+            check_unique_key(raw[contract.name], contract.name, contract.key)
+            for contract in con.OLIST_CONTRACTS
+            if contract.key
+        ),
         check_no_nulls(items, "order_items", ("order_id", "product_id", "seller_id")),
         check_no_nulls(orders, "orders", ("order_id", "customer_id", "order_status")),
         check_foreign_key(items, orders, "order_id", "order_id", "order_items->orders"),
@@ -173,9 +180,9 @@ def _write_processed(
 
     report = {
         "cleaned_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "row_counts": {t: len(df) for t, df in outputs.items()},
+        "row_counts": {table: len(df) for table, df in outputs.items()},
         "revenue_preserved": round(revenue, 2),
-        "checks": [asdict(c) for c in checks],
+        "checks": [asdict(check) for check in checks],
     }
     storage.put_bytes(QUALITY_REPORT_KEY, json.dumps(report, indent=2).encode())
 

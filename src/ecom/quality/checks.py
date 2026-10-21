@@ -51,7 +51,7 @@ def check_unique_key(
 ) -> CheckResult:
     """Assert the declared key uniquely identifies every row."""
     name = f"unique:{table}.{'+'.join(key)}"
-    missing = [c for c in key if c not in df.columns]
+    missing = [column for column in key if column not in df.columns]
     if missing:
         return CheckResult(name, False, severity, f"key columns absent: {missing}")
 
@@ -74,7 +74,7 @@ def check_no_nulls(
 ) -> CheckResult:
     """Assert the given columns contain no nulls."""
     name = f"not_null:{table}.{'+'.join(columns)}"
-    present = [c for c in columns if c in df.columns]
+    present = [column for column in columns if column in df.columns]
     if len(present) != len(columns):
         absent = sorted(set(columns) - set(present))
         return CheckResult(name, False, severity, f"columns absent: {absent}")
@@ -137,8 +137,8 @@ def run_gate(results: list[CheckResult], *, stage: str) -> list[CheckResult]:
         DataQualityError: If any ``error`` check failed. The message lists every
             failure rather than only the first, so one run surfaces all of them.
     """
-    failures = [r for r in results if not r.passed and r.severity == "error"]
-    warnings = [r for r in results if not r.passed and r.severity == "warn"]
+    failures = [check for check in results if not check.passed and check.severity == "error"]
+    warnings = [check for check in results if not check.passed and check.severity == "warn"]
 
     for result in results:
         if result.passed:
@@ -151,12 +151,12 @@ def run_gate(results: list[CheckResult], *, stage: str) -> list[CheckResult]:
     logger.info(
         "quality gate %s: %d passed, %d warned, %d failed",
         stage,
-        sum(r.passed for r in results),
+        sum(check.passed for check in results),
         len(warnings),
         len(failures),
     )
 
     if failures:
-        summary = "; ".join(f"{r.name}: {r.detail}" for r in failures)
+        summary = "; ".join(f"{check.name}: {check.detail}" for check in failures)
         raise DataQualityError(f"{len(failures)} check(s) failed at stage {stage!r}: {summary}")
     return results

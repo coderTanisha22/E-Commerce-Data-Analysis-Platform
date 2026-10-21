@@ -1,2 +1,8 @@
-select customer_id, customer_unique_id, customer_zip_code_prefix, customer_city, customer_state
-from {{ ref('stg_customers') }}
+-- Grain: one row per customer_id, the per-order customer key.
+SELECT
+  customer_id,
+  customer_unique_id,
+  customer_zip_code_prefix,
+  customer_city,
+  customer_state
+FROM {{ ref('stg_customers') }}

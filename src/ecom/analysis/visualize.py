@@ -91,8 +91,8 @@ def plot_distribution(
         The path written.
     """
     items = sorted(distribution.items())[:limit]
-    labels = [f"{k} {key_label}" for k, _ in items]
-    values = [v for _, v in items]
+    labels = [f"{key} {key_label}" for key, _ in items]
+    values = [count for _, count in items]
 
     fig, ax = _new_figure(title, subtitle, (7.4, 0.46 * len(items) + 1.7))
     positions = range(len(items))
@@ -102,10 +102,10 @@ def plot_distribution(
     _style_axes(ax, xlabel="orders" if "order" in key_label else "count")
 
     span = max(values) if values else 1
-    for y, value in zip(positions, values, strict=True):
+    for slot, value in zip(positions, values, strict=True):
         ax.text(
             value + span * 0.012,
-            y,
+            slot,
             f"{value:,}",
             va="center",
             fontsize=9,

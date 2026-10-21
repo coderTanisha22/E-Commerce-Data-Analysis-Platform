@@ -76,10 +76,12 @@ def selectivity_sweep(fact: pd.DataFrame, root: Path, trials: int = DEFAULT_TRIA
         truth = float(fact.loc[fact["order_month"].isin(wanted), "line_revenue"].sum())
 
         mono_times, mono_out = time_callable(
-            lambda w=wanted: frag.q_revenue_for_months(mono_root, w, "monolithic"), trials
+            lambda months=wanted: frag.q_revenue_for_months(mono_root, months, "monolithic"),
+            trials,
         )
         horiz_times, horiz_out = time_callable(
-            lambda w=wanted: frag.q_revenue_for_months(horiz_root, w, "horizontal"), trials
+            lambda months=wanted: frag.q_revenue_for_months(horiz_root, months, "horizontal"),
+            trials,
         )
         # A sweep that silently returned wrong numbers would still draw a
         # smooth curve, so every point is checked against the truth.
@@ -182,7 +184,9 @@ def shard_sweep(
         shard_root = root / f"sh{shards}"
         stats = frag.write_sharded(fact, shard_root, shards)
         times, out = time_callable(
-            lambda s=shards, r=shard_root: frag.q_revenue_for_seller(r, seller, f"sharded_{s}", s),
+            lambda count=shards, root=shard_root: frag.q_revenue_for_seller(
+                root, seller, f"sharded_{count}", count
+            ),
             trials,
         )
         seconds = median(times)
@@ -326,7 +330,7 @@ def volume_scaling(
         for name, fn in COOCCURRENCE_STRATEGIES:
             if name in abandoned:
                 continue
-            times, out = time_callable(lambda f=fn, s=scaled: f(s), trials)
+            times, out = time_callable(lambda run=fn, frame=scaled: run(frame), trials)
             seconds = median(times)
             rows.append(
                 {
@@ -388,7 +392,7 @@ def materialisation_study(
 
     mat_times, mat_out = time_callable(materialised, trials)
     pipe_times, pipe_out = time_callable(pipelined, trials)
-    written = sum(p.stat().st_size for p in root.glob("*.parquet"))
+    written = sum(parquet.stat().st_size for parquet in root.glob("*.parquet"))
 
     mat_s, pipe_s = median(mat_times), median(pipe_times)
     identical = mat_out.reset_index(drop=True).equals(pipe_out.reset_index(drop=True))

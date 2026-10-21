@@ -192,7 +192,9 @@ OLIST_CONTRACTS: tuple[TableContract, ...] = (
 )
 """Tables read from the Olist download. Ingestion iterates this tuple."""
 
-ALL_CONTRACTS: dict[str, TableContract] = {c.name: c for c in (*OLIST_CONTRACTS, INVENTORY)}
+ALL_CONTRACTS: dict[str, TableContract] = {
+    contract.name: contract for contract in (*OLIST_CONTRACTS, INVENTORY)
+}
 
 
 def get_contract(name: str) -> TableContract:

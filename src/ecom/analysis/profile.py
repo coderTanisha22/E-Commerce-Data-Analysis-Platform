@@ -84,7 +84,7 @@ def build_cooccurrence(order_products: pd.DataFrame) -> pd.DataFrame:
             counter[pair] += 1
 
     pairs = pd.DataFrame(
-        [(a, b, n) for (a, b), n in counter.items()],
+        [(first, second, count) for (first, second), count in counter.items()],
         columns=["product_a", "product_b", "order_count"],
     )
     logger.info(
@@ -102,20 +102,22 @@ def profile_cooccurrence(order_products: pd.DataFrame, pairs: pd.DataFrame) -> d
     for row in pairs.itertuples(index=False):
         graph.add_edge(row.product_a, row.product_b, weight=row.order_count)
 
-    components = sorted((len(c) for c in nx.connected_components(graph)), reverse=True)
-    degrees = pd.Series([d for _, d in graph.degree()], dtype="int64")
+    components = sorted((len(part) for part in nx.connected_components(graph)), reverse=True)
+    degrees = pd.Series([degree for _, degree in graph.degree()], dtype="int64")
     served = pairs[pairs["order_count"] >= MIN_COOCCURRENCE_COUNT]
 
     return {
         "orders_total": len(sizes),
         "orders_multi_product": int((sizes >= 2).sum()),
         "multi_product_share_pct": round(100 * float((sizes >= 2).mean()), 2),
-        "basket_size_distribution": {int(k): int(v) for k, v in sizes.value_counts().items()},
+        "basket_size_distribution": {
+            int(size): int(count) for size, count in sizes.value_counts().items()
+        },
         "pairs_total": len(pairs),
         "pairs_weight_1": int((pairs["order_count"] == 1).sum()),
         "weight_1_share_pct": round(100 * float((pairs["order_count"] == 1).mean()), 2),
         "pair_weight_distribution": {
-            int(k): int(v) for k, v in pairs["order_count"].value_counts().items()
+            int(weight): int(count) for weight, count in pairs["order_count"].value_counts().items()
         },
         "graph_nodes": graph.number_of_nodes(),
         "graph_edges": graph.number_of_edges(),
@@ -154,7 +156,7 @@ def profile_sales(
         "units_sold": int(in_window["quantity"].sum()),
         "orders_in_window": order_count,
         "average_order_value_brl": round(revenue / order_count, 2) if order_count else 0.0,
-        "orders_by_month": {str(k.date()): int(v) for k, v in monthly.items()},
+        "orders_by_month": {str(month.date()): int(count) for month, count in monthly.items()},
     }
 
 
@@ -187,7 +189,8 @@ def profile_velocity(
         "sold_once_only": int((per_pair["quantity"] == 1).sum()),
         "sold_once_share_pct": round(100 * float((per_pair["quantity"] == 1).mean()), 2),
         "units_distribution_head": {
-            int(k): int(v) for k, v in per_pair["quantity"].value_counts().head(8).items()
+            int(units): int(count)
+            for units, count in per_pair["quantity"].value_counts().head(8).items()
         },
     }
 

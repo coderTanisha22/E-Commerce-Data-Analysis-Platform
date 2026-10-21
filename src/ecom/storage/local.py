@@ -71,7 +71,7 @@ class LocalStorage(StorageBackend):
             for path in sorted(root.rglob("*")):
                 if path.is_file():
                     keys.append(f"{name}/{path.relative_to(root).as_posix()}")
-        return sorted(k for k in keys if k.startswith(prefix))
+        return sorted(key for key in keys if key.startswith(prefix))
 
     def describe(self) -> str:
         """Return the two backing directories."""

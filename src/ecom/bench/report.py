@@ -240,11 +240,11 @@ def fig_layout_matrix(results: dict, out: Path) -> Path:
     for index, layout in enumerate(layouts):
         values = [
             float(
-                cells[(cells["query"] == q) & (cells["layout"] == layout)][
+                cells[(cells["query"] == query) & (cells["layout"] == layout)][
                     "speedup_vs_monolithic"
                 ].iloc[0]
             )
-            for q in queries
+            for query in queries
         ]
         offset = (index - 1) * width
         bars = ax.bar(
@@ -281,7 +281,7 @@ def fig_layout_matrix(results: dict, out: Path) -> Path:
         ha="left",
     )
     ax.set_xticks(positions)
-    ax.set_xticklabels([labels[q] for q in queries], fontsize=10, color=MUTED)
+    ax.set_xticklabels([labels[query] for query in queries], fontsize=10, color=MUTED)
     ax.set_yscale("log")
     _style(ax, "", "Speedup vs monolithic (×, log scale)", grid="y")
     _title(
@@ -376,12 +376,12 @@ def fig_shards(results: dict, out: Path) -> Path:
         fontsize=9,
         color=CRIT,
     )
-    for x, value in zip(positions, sharded["storage_overhead_pct"], strict=True):
+    for slot, value in zip(positions, sharded["storage_overhead_pct"], strict=True):
         # A negative overhead labelled below the bar would land on the x tick,
         # so every label sits above the baseline regardless of sign.
         bottom.annotate(
             f"{value:+.1f}%",
-            xy=(x, max(value, 0.0)),
+            xy=(slot, max(value, 0.0)),
             xytext=(0, 4),
             textcoords="offset points",
             ha="center",
@@ -394,7 +394,7 @@ def fig_shards(results: dict, out: Path) -> Path:
     )
     _style(bottom, "Number of shards", "Extra storage (%)")
     bottom.set_xticks(positions)
-    bottom.set_xticklabels([str(int(v)) for v in sharded["shards"]])
+    bottom.set_xticklabels([str(int(count)) for count in sharded["shards"]])
     return _save(fig, out / "f4_shard_sweep.png")
 
 
@@ -404,14 +404,16 @@ def fig_workload_speedups(results: dict, out: Path) -> Path:
     for workload in results["workloads"]:
         strategies = workload["strategies"]
         verified = [
-            s
-            for s in strategies
-            if not s["failed"] and s["matches_baseline"] is not False and s["speedup_vs_baseline"]
+            entry
+            for entry in strategies
+            if not entry["failed"]
+            and entry["matches_baseline"] is not False
+            and entry["speedup_vs_baseline"]
         ]
         if not verified:
             continue
-        best = max(verified, key=lambda s: s["speedup_vs_baseline"])
-        rejected = [s for s in strategies if s["matches_baseline"] is False]
+        best = max(verified, key=lambda item: item["speedup_vs_baseline"])
+        rejected = [entry for entry in strategies if entry["matches_baseline"] is False]
         rows.append(
             {
                 "workload": workload["workload"],
@@ -425,7 +427,7 @@ def fig_workload_speedups(results: dict, out: Path) -> Path:
 
     fig, ax = plt.subplots(figsize=(8.4, 4.4), facecolor=PAPER)
     positions = np.arange(len(frame))
-    colours = [GOOD if v >= 1.0 else CRIT for v in frame["speedup"]]
+    colours = [GOOD if speedup >= 1.0 else CRIT for speedup in frame["speedup"]]
     ax.barh(positions, frame["speedup"], color=colours, height=0.5, zorder=3)
     for index, row in enumerate(frame.itertuples(index=False)):
         ax.annotate(
@@ -492,7 +494,7 @@ def _table(frame: pd.DataFrame, columns: dict[str, str]) -> str:
     Returns:
         The table, including header and separator rows.
     """
-    present = {k: v for k, v in columns.items() if k in frame.columns}
+    present = {name: heading for name, heading in columns.items() if name in frame.columns}
     header = "| " + " | ".join(present.values()) + " |"
     rule = "|" + "|".join("---" for _ in present) + "|"
     lines = [header, rule]
@@ -517,14 +519,14 @@ def _workload_section(workload: dict) -> str:
     frame["verdict"] = [
         (
             "baseline"
-            if s["matches_baseline"] is None and not s["failed"]
+            if strategy["matches_baseline"] is None and not strategy["failed"]
             else (
                 "failed"
-                if s["failed"]
-                else "**wrong answer**" if s["matches_baseline"] is False else "verified"
+                if strategy["failed"]
+                else ("**wrong answer**" if strategy["matches_baseline"] is False else "verified")
             )
         )
-        for s in workload["strategies"]
+        for strategy in workload["strategies"]
     ]
     frame["ms"] = (frame["seconds_median"] * 1000).round(2)
     frame["spread_ms"] = ((frame["seconds_max"] - frame["seconds_min"]) * 1000).round(2)
@@ -625,28 +627,34 @@ def _rejected_rows(results: dict) -> list[str]:
     return rows
 
 
-def render_markdown(results: dict, figures: list[Path]) -> str:
-    """Render the whole results document as a Markdown report.
+def _report_frames(results: dict) -> dict:
+    """Pull every frame the report sections need out of the results document.
 
-    Every number is read from ``results``; nothing is restated from memory, so
-    re-running the study and re-rendering is the only way to change the report.
+    Computed once and passed down, so no section re-derives a figure and the
+    sections stay independent of each other's ordering.
     """
-    env = results["environment"]
-    sweep = pd.DataFrame(results["selectivity_sweep"]["rows"])
-    crossover = results["selectivity_sweep"]["crossover_selectivity_pct"]
-    layouts = pd.DataFrame(results["layout_comparison"]["layouts"])
-    cells = pd.DataFrame(results["layout_comparison"]["cells"])
-    shard = pd.DataFrame(results["shard_sweep"]["rows"])
     scaling = pd.DataFrame(results["volume_scaling"]["rows"])
-    exponents = results["volume_scaling"]["exponents"]
-    materialisation = pd.DataFrame(results["materialisation"])
-    flag = results["pipeline_flag"]
-
     at_max = scaling[scaling["factor"] == scaling["factor"].max()].sort_values("seconds")
-    spread_1x = scaling[scaling["factor"] == 1]["seconds"]
-    spread_max = at_max["seconds"]
+    return {
+        "env": results["environment"],
+        "sweep": pd.DataFrame(results["selectivity_sweep"]["rows"]),
+        "crossover": results["selectivity_sweep"]["crossover_selectivity_pct"],
+        "layouts": pd.DataFrame(results["layout_comparison"]["layouts"]),
+        "cells": pd.DataFrame(results["layout_comparison"]["cells"]),
+        "shard": pd.DataFrame(results["shard_sweep"]["rows"]),
+        "scaling": scaling,
+        "exponents": results["volume_scaling"]["exponents"],
+        "materialisation": pd.DataFrame(results["materialisation"]),
+        "flag": results["pipeline_flag"],
+        "at_max": at_max,
+        "spread_1x": scaling[scaling["factor"] == 1]["seconds"],
+        "spread_max": at_max["seconds"],
+    }
 
-    lines: list[str] = [
+
+def _intro_lines(_frames: dict) -> list[str]:
+    """Title and the two framing sentences."""
+    return [
         "# Pipeline optimisation study",
         "",
         "Measured comparison of alternative implementations and physical storage",
@@ -657,6 +665,13 @@ def render_markdown(results: dict, figures: list[Path]) -> str:
         "Reproduce with `make bench`. Every figure and table below is generated from",
         "`reports/benchmarks/results.json`; none of the numbers are typed by hand.",
         "",
+    ]
+
+
+def _how_to_read_lines(results: dict, frames: dict) -> list[str]:
+    """The caveats a reader needs before any number below."""
+    env = frames["env"]
+    return [
         "## How to read these numbers",
         "",
         f"- **Measured:** {env['measured_at']} on {env['platform']}, Python {env['python']}, "
@@ -685,6 +700,17 @@ def render_markdown(results: dict, figures: list[Path]) -> str:
         "strategy that returns a different answer is reported as a rejected candidate, "
         "never as a win.",
         "",
+    ]
+
+
+def _headline_lines(results: dict, frames: dict) -> list[str]:
+    """The six findings worth carrying away."""
+    at_max = frames["at_max"]
+    crossover = frames["crossover"]
+    flag = frames["flag"]
+    materialisation = frames["materialisation"]
+    sweep = frames["sweep"]
+    return [
         "## Headline results",
         "",
         "| Finding | Measurement |",
@@ -707,6 +733,12 @@ def render_markdown(results: dict, figures: list[Path]) -> str:
         f"{at_max.iloc[-1]['seconds'] / at_max.iloc[0]['seconds']:.2f}×** spread between "
         f"strategies (`{at_max.iloc[0]['strategy']}` fastest) |",
         "",
+    ]
+
+
+def _strategy_intro_lines(_frames: dict) -> list[str]:
+    """Lead-in for the per-operation strategy tables."""
+    return [
         "## 1. Strategy comparison per operation",
         "",
         "Each operation below is implemented several ways on identical input. The first",
@@ -715,11 +747,11 @@ def render_markdown(results: dict, figures: list[Path]) -> str:
         "",
     ]
 
-    for workload in results["workloads"]:
-        lines.append(_workload_section(workload))
 
-    lines += [
-        "![Best verified strategy per operation](figures/f5_workload_speedups.png)",
+def _landed_lines(frames: dict) -> list[str]:
+    """The one optimisation promoted into the pipeline."""
+    flag = frames["flag"]
+    return [
         "",
         "## 2. The optimisation that was landed",
         "",
@@ -758,6 +790,14 @@ def render_markdown(results: dict, figures: list[Path]) -> str:
         "transform rewrite, which is why it was landed in `StorageBackend.get_csv_arrow`",
         "rather than in `trim_whitespace`.",
         "",
+    ]
+
+
+def _fragmentation_layouts_lines(results: dict, frames: dict) -> list[str]:
+    """Storage cost of each layout, and the three-query cost matrix."""
+    layouts = frames["layouts"]
+    cells = frames["cells"]
+    return [
         "## 3. Fragmentation and sharding",
         "",
         f"Written at {results['fragmentation_scale']}× the real fact table "
@@ -813,6 +853,15 @@ def render_markdown(results: dict, figures: list[Path]) -> str:
         "penalty. The layout buys nothing the format does not already provide and adds",
         "a catastrophic failure mode.",
         "",
+    ]
+
+
+def _fragmentation_selectivity_lines(frames: dict) -> list[str]:
+    """The selectivity sweep and where partition pruning stops paying."""
+    sweep = frames["sweep"]
+    crossover = frames["crossover"]
+    layouts = frames["layouts"]
+    return [
         "### Selectivity: where pruning stops paying",
         "",
         _table(
@@ -841,6 +890,13 @@ def render_markdown(results: dict, figures: list[Path]) -> str:
         "partition on a column the frequent queries actually filter on, and only when",
         "those queries are selective.",
         "",
+    ]
+
+
+def _fragmentation_shard_lines(results: dict, frames: dict) -> list[str]:
+    """Shard count against lookup speed and storage overhead."""
+    shard = frames["shard"]
+    return [
         "### Shard count: speedup against storage",
         "",
         _table(
@@ -876,6 +932,13 @@ def render_markdown(results: dict, figures: list[Path]) -> str:
         "difference is inside the measurement noise and it costs half the extra "
         "storage.",
         "",
+    ]
+
+
+def _materialisation_lines(frames: dict) -> list[str]:
+    """Cost of writing Parquet between stages."""
+    materialisation = frames["materialisation"]
+    return [
         "## 4. Materialisation versus pipelining",
         "",
         _table(
@@ -898,6 +961,16 @@ def render_markdown(results: dict, figures: list[Path]) -> str:
         "this is a fixed overhead which amortises as the per-stage computation grows —",
         "it looks worst, as here, when the stages themselves are cheap.",
         "",
+    ]
+
+
+def _scaling_lines(frames: dict) -> list[str]:
+    """Whether the choice of strategy matters at this volume."""
+    exponents = frames["exponents"]
+    scaling = frames["scaling"]
+    spread_1x = frames["spread_1x"]
+    spread_max = frames["spread_max"]
+    return [
         "## 5. Scaling: does any of this matter at this size?",
         "",
         _table(
@@ -905,7 +978,7 @@ def render_markdown(results: dict, figures: list[Path]) -> str:
                 index="strategy", columns="factor", values="seconds", aggfunc="first"
             )
             .reset_index()
-            .rename(columns={c: f"{c}× (s)" for c in (1, 2, 4, 8)}),
+            .rename(columns={factor: f"{factor}× (s)" for factor in (1, 2, 4, 8)}),
             {
                 "strategy": "Strategy",
                 "1× (s)": "1×",
@@ -938,6 +1011,16 @@ def render_markdown(results: dict, figures: list[Path]) -> str:
         "never fires. An optimisation's value depends on the data's shape, not only on",
         "the algorithm's complexity class.",
         "",
+    ]
+
+
+def _rejected_lines(results: dict) -> list[str]:
+    """Strategies that were faster but not usable.
+
+    Takes the raw results document rather than the derived frames, because
+    _rejected_rows walks the per-workload strategy lists directly.
+    """
+    return [
         "## 6. Strategies that were rejected",
         "",
         "Rejected means one of two things: the strategy returned a different answer",
@@ -951,6 +1034,12 @@ def render_markdown(results: dict, figures: list[Path]) -> str:
         "every strategy's output against the baseline's. They would otherwise have",
         "produced plausible, wrong pipelines that ran faster.",
         "",
+    ]
+
+
+def _decisions_lines(results: dict) -> list[str]:
+    """What the measurements changed in the project."""
+    return [
         "## 7. What this changes in the project",
         "",
         "| Decision | Evidence |",
@@ -969,6 +1058,12 @@ def render_markdown(results: dict, figures: list[Path]) -> str:
         "| `ECOM_FAST_READER` available, default off | Verified identical output; left "
         "off so published figures come from the long-standing path. |",
         "",
+    ]
+
+
+def _reproducing_lines(_frames: dict, figures: list[Path]) -> list[str]:
+    """How to regenerate everything in this report."""
+    return [
         "## Reproducing",
         "",
         "```bash",
@@ -978,7 +1073,37 @@ def render_markdown(results: dict, figures: list[Path]) -> str:
         "",
         "Figures:",
         "",
-        *[f"- `{p.parent.name}/{p.name}`" for p in figures],
+        *[f"- `{figure.parent.name}/{figure.name}`" for figure in figures],
         "",
+    ]
+
+
+def render_markdown(results: dict, figures: list[Path]) -> str:
+    """Render the whole results document as Markdown.
+
+    Every number is read from ``results``; nothing is restated from memory, so
+    re-running the study and re-rendering is the only way to change the report.
+    Each section is built by its own function above, in the order they appear.
+    """
+    frames = _report_frames(results)
+    lines: list[str] = [
+        *_intro_lines(frames),
+        *_how_to_read_lines(results, frames),
+        *_headline_lines(results, frames),
+        *_strategy_intro_lines(frames),
+    ]
+    for workload in results["workloads"]:
+        lines.append(_workload_section(workload))
+    lines += [
+        "![Best verified strategy per operation](figures/f5_workload_speedups.png)",
+        *_landed_lines(frames),
+        *_fragmentation_layouts_lines(results, frames),
+        *_fragmentation_selectivity_lines(frames),
+        *_fragmentation_shard_lines(results, frames),
+        *_materialisation_lines(frames),
+        *_scaling_lines(frames),
+        *_rejected_lines(results),
+        *_decisions_lines(results),
+        *_reproducing_lines(frames, figures),
     ]
     return "\n".join(lines)

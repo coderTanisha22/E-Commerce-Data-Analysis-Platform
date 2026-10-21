@@ -74,7 +74,7 @@ def cooccur_nested_loop(order_products: pd.DataFrame) -> pd.DataFrame:
             counter[pair] += 1
 
     return pd.DataFrame(
-        [(a, b, n) for (a, b), n in counter.items()],
+        [(first, second, count) for (first, second), count in counter.items()],
         columns=PAIR_COLUMNS,
     )
 
@@ -283,7 +283,9 @@ ROW_COUNT_STRATEGIES = (
 def _string_columns(df: pd.DataFrame) -> list[str]:
     """Return the columns holding text, whatever string dtype backs them."""
     return [
-        c for c in df.columns if df[c].dtype == "object" or str(df[c].dtype).startswith("string")
+        column
+        for column in df.columns
+        if df[column].dtype == "object" or str(df[column].dtype).startswith("string")
     ]
 
 

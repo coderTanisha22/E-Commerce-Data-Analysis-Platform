@@ -1,7 +1,7 @@
-select
-  cast(seller_id as {{ dbt.type_string() }}) as seller_id,
-  cast(seller_zip_code_prefix as {{ dbt.type_string() }}) as seller_zip_code_prefix,
-  cast(seller_city as {{ dbt.type_string() }}) as seller_city,
-  cast(seller_state as {{ dbt.type_string() }}) as seller_state,
+SELECT
+  CAST(seller_id AS {{ dbt.type_string() }})                AS seller_id,
+  CAST(seller_zip_code_prefix AS {{ dbt.type_string() }})   AS seller_zip_code_prefix,
+  CAST(seller_city AS {{ dbt.type_string() }})              AS seller_city,
+  CAST(seller_state AS {{ dbt.type_string() }})             AS seller_state,
   {{ provenance_columns() }}
-from {{ source('olist_cleaned', 'olist_sellers_dataset') }}
+FROM {{ source('olist_cleaned', 'olist_sellers_dataset') }}

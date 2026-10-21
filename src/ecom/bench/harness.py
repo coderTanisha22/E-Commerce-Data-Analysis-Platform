@@ -102,7 +102,7 @@ class WorkloadResult:
         """The first registered strategy, against which speedups are quoted."""
         return self.measurements[0] if self.measurements else None
 
-    def speedup(self, m: Measurement) -> float:
+    def speedup(self, measurement: Measurement) -> float:
         """Baseline time divided by this strategy's time.
 
         Returns:
@@ -110,14 +110,14 @@ class WorkloadResult:
             timing is unusable.
         """
         base = self.baseline
-        if base is None or m.failed or not m.seconds_median:
+        if base is None or measurement.failed or not measurement.seconds_median:
             return 0.0
-        return base.seconds_median / m.seconds_median
+        return base.seconds_median / measurement.seconds_median
 
     def best(self) -> Measurement | None:
         """The fastest strategy that also agreed with the baseline."""
-        usable = [m for m in self.measurements if m.ok and m.seconds_median]
-        return min(usable, key=lambda m: m.seconds_median) if usable else None
+        usable = [item for item in self.measurements if item.ok and item.seconds_median]
+        return min(usable, key=lambda item: item.seconds_median) if usable else None
 
     def to_dict(self) -> dict[str, Any]:
         """Render as JSON-safe nested dicts for the results file."""
@@ -128,21 +128,21 @@ class WorkloadResult:
             "input_rows": self.input_rows,
             "strategies": [
                 {
-                    "name": m.name,
-                    "seconds_median": round(m.seconds_median, 6),
-                    "seconds_min": round(m.seconds_min, 6),
-                    "seconds_max": round(m.seconds_max, 6),
-                    "peak_mib": round(m.peak_mib, 2),
-                    "rows_out": m.rows_out,
+                    "name": item.name,
+                    "seconds_median": round(item.seconds_median, 6),
+                    "seconds_min": round(item.seconds_min, 6),
+                    "seconds_max": round(item.seconds_max, 6),
+                    "peak_mib": round(item.peak_mib, 2),
+                    "rows_out": item.rows_out,
                     "throughput_rows_per_s": (
-                        round(self.input_rows / m.seconds_median) if m.seconds_median else 0
+                        round(self.input_rows / item.seconds_median) if item.seconds_median else 0
                     ),
-                    "speedup_vs_baseline": round(self.speedup(m), 3),
-                    "matches_baseline": m.matches_baseline,
-                    "note": m.note,
-                    "failed": m.failed,
+                    "speedup_vs_baseline": round(self.speedup(item), 3),
+                    "matches_baseline": item.matches_baseline,
+                    "note": item.note,
+                    "failed": item.failed,
                 }
-                for m in self.measurements
+                for item in self.measurements
             ],
         }
 

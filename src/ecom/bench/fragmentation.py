@@ -176,7 +176,9 @@ def _layout_stats(layout: str, root: Path) -> LayoutStats:
     """Count files and bytes under ``root``."""
     files = sorted(root.rglob("*.parquet"))
     return LayoutStats(
-        layout=layout, file_count=len(files), total_bytes=sum(f.stat().st_size for f in files)
+        layout=layout,
+        file_count=len(files),
+        total_bytes=sum(parquet.stat().st_size for parquet in files),
     )
 
 
@@ -235,8 +237,9 @@ def _shard_of(values: pd.Series, shards: int) -> np.ndarray:
     """
     return np.array(
         [
-            int.from_bytes(hashlib.blake2b(str(v).encode(), digest_size=8).digest(), "big") % shards
-            for v in values
+            int.from_bytes(hashlib.blake2b(str(key_value).encode(), digest_size=8).digest(), "big")
+            % shards
+            for key_value in values
         ],
         dtype="int64",
     )
@@ -279,7 +282,9 @@ def q_revenue_for_months(root: Path, months: list[str], layout: str) -> QueryOut
     wanted = set(months)
     if layout == "horizontal":
         files = [
-            p for p in sorted(root.rglob("*.parquet")) if p.parent.name.split("=", 1)[1] in wanted
+            candidate
+            for candidate in sorted(root.rglob("*.parquet"))
+            if candidate.parent.name.split("=", 1)[1] in wanted
         ]
         if not files:
             return QueryOutcome(0.0, 0)
@@ -288,10 +293,10 @@ def q_revenue_for_months(root: Path, months: list[str], layout: str) -> QueryOut
         # filter is redundant -- but leaving it in keeps the work per row
         # identical across layouts, so the measurement isolates pruning alone.
         total = 0.0
-        for path in files:
-            frame = pq.read_table(path, columns=["order_month", "line_revenue"]).to_pandas()
+        for parquet in files:
+            frame = pq.read_table(parquet, columns=["order_month", "line_revenue"]).to_pandas()
             total += float(frame.loc[frame["order_month"].isin(wanted), "line_revenue"].sum())
-        return QueryOutcome(total, sum(f.stat().st_size for f in files))
+        return QueryOutcome(total, sum(parquet.stat().st_size for parquet in files))
 
     files = sorted(root.rglob("*.parquet"))
     if layout == "vertical":
@@ -306,13 +311,13 @@ def q_revenue_for_months(root: Path, months: list[str], layout: str) -> QueryOut
         merged = hot.merge(cold, on="row_id")
         month = merged["order_purchase_timestamp"].dt.strftime("%Y-%m")
         total = float(merged.loc[month.isin(wanted), "line_revenue"].sum())
-        return QueryOutcome(total, sum(f.stat().st_size for f in files))
+        return QueryOutcome(total, sum(parquet.stat().st_size for parquet in files))
 
     total = 0.0
-    for f in files:
-        frame = pq.read_table(f, columns=["order_month", "line_revenue"]).to_pandas()
+    for parquet in files:
+        frame = pq.read_table(parquet, columns=["order_month", "line_revenue"]).to_pandas()
         total += float(frame.loc[frame["order_month"].isin(wanted), "line_revenue"].sum())
-    return QueryOutcome(total, sum(f.stat().st_size for f in files))
+    return QueryOutcome(total, sum(parquet.stat().st_size for parquet in files))
 
 
 def q_revenue_for_seller(root: Path, seller_id: str, layout: str, shards: int = 0) -> QueryOutcome:
@@ -339,10 +344,10 @@ def q_revenue_for_seller(root: Path, seller_id: str, layout: str, shards: int = 
 
     files = sorted(root.rglob("*.parquet"))
     total = 0.0
-    for f in files:
-        frame = pq.read_table(f, columns=["seller_id", "line_revenue"]).to_pandas()
+    for parquet in files:
+        frame = pq.read_table(parquet, columns=["seller_id", "line_revenue"]).to_pandas()
         total += float(frame.loc[frame["seller_id"] == seller_id, "line_revenue"].sum())
-    return QueryOutcome(total, sum(f.stat().st_size for f in files))
+    return QueryOutcome(total, sum(parquet.stat().st_size for parquet in files))
 
 
 def q_total_revenue(root: Path, layout: str) -> QueryOutcome:
@@ -358,7 +363,7 @@ def q_total_revenue(root: Path, layout: str) -> QueryOutcome:
 
     files = sorted(root.rglob("*.parquet"))
     total = sum(
-        float(pq.read_table(f, columns=["line_revenue"])["line_revenue"].to_pandas().sum())
-        for f in files
+        float(pq.read_table(parquet, columns=["line_revenue"])["line_revenue"].to_pandas().sum())
+        for parquet in files
     )
-    return QueryOutcome(total, sum(f.stat().st_size for f in files))
+    return QueryOutcome(total, sum(parquet.stat().st_size for parquet in files))

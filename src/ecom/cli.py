@@ -116,7 +116,11 @@ def _cmd_bench(args: argparse.Namespace) -> int:
         f"+{shards['fastest_storage_overhead_pct']:.1f}% storage - not recommended"
     )
     for workload in results["workloads"]:
-        rejected = [s["name"] for s in workload["strategies"] if s["matches_baseline"] is False]
+        rejected = [
+            strategy["name"]
+            for strategy in workload["strategies"]
+            if strategy["matches_baseline"] is False
+        ]
         if rejected:
             print(f"  rejected (wrong answer)    : {', '.join(rejected)}")
     for path in figures:

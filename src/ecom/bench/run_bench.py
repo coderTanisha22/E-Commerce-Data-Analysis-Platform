@@ -83,7 +83,9 @@ def _bench_cooccurrence(order_products: pd.DataFrame) -> WorkloadResult:
     return run_workload(
         workload="co-occurrence self-join",
         concept="Join methods J1-J4; vectorised vs interpreted execution",
-        strategies=[(name, lambda f=fn: f(order_products)) for name, fn in COOCCURRENCE_STRATEGIES],
+        strategies=[
+            (name, lambda run=fn: run(order_products)) for name, fn in COOCCURRENCE_STRATEGIES
+        ],
         input_rows=len(order_products),
         unit="order-product rows",
         notes={
@@ -100,7 +102,7 @@ def _bench_row_count(source_dir: Path) -> WorkloadResult:
     return run_workload(
         workload="CSV row count",
         concept="Scan cost; correctness under quoted newlines",
-        strategies=[(name, lambda f=fn: f(path)) for name, fn in ROW_COUNT_STRATEGIES],
+        strategies=[(name, lambda run=fn: run(path)) for name, fn in ROW_COUNT_STRATEGIES],
         input_rows=0,
         unit="file",
         measure_memory=False,
@@ -127,7 +129,7 @@ def _bench_read_trim(settings: Settings) -> WorkloadResult:
     return run_workload(
         workload="CSV read + whitespace trim",
         concept="Columnar in-memory layout; vectorisation; measure before optimising",
-        strategies=[(name, lambda f=fn: f(path)) for name, fn in READ_TRIM_STRATEGIES],
+        strategies=[(name, lambda run=fn: run(path)) for name, fn in READ_TRIM_STRATEGIES],
         input_rows=TRIM_CELLS_PER_TABLE,
         unit="string cells",
         notes={
@@ -153,7 +155,7 @@ def _bench_timestamps(storage: StorageBackend) -> WorkloadResult:
     return run_workload(
         workload="timestamp parsing",
         concept="Avoiding per-value interpretation; Arrow kernels",
-        strategies=[(name, lambda f=fn: f(series)) for name, fn in TIMESTAMP_STRATEGIES],
+        strategies=[(name, lambda run=fn: run(series)) for name, fn in TIMESTAMP_STRATEGIES],
         input_rows=len(series),
         unit="timestamps",
     )
@@ -168,7 +170,9 @@ def _bench_projection(root: Path, fact: pd.DataFrame) -> WorkloadResult:
     return run_workload(
         workload="Parquet projection",
         concept="Projection pushdown; columnar storage",
-        strategies=[(name, lambda f=fn: f(path, columns)) for name, fn in PROJECTION_STRATEGIES],
+        strategies=[
+            (name, lambda run=fn: run(path, columns)) for name, fn in PROJECTION_STRATEGIES
+        ],
         input_rows=len(fact),
         unit="fact rows",
         notes={
@@ -215,16 +219,20 @@ def _layout_comparison(fact: pd.DataFrame, root: Path, trials: int) -> dict[str,
     # Each query takes the same three arguments so the matrix below can call
     # them uniformly; the two that cannot use a shard count ignore it.
     queries = {
-        "total_revenue": lambda p, lay, _sh: frag.q_total_revenue(p, lay),
-        "two_month_revenue": lambda p, lay, _sh: frag.q_revenue_for_months(p, months, lay),
-        "seller_revenue": lambda p, lay, sh: frag.q_revenue_for_seller(p, seller, lay, sh),
+        "total_revenue": lambda root, layout, _shards: frag.q_total_revenue(root, layout),
+        "two_month_revenue": lambda root, layout, _shards: frag.q_revenue_for_months(
+            root, months, layout
+        ),
+        "seller_revenue": lambda root, layout, shards: frag.q_revenue_for_seller(
+            root, seller, layout, shards
+        ),
     }
 
     results: list[dict[str, object]] = []
     for query_name, query in queries.items():
         for layout, (path, sh) in layouts.items():
             times, outcome = time_callable(
-                lambda q=query, p=path, lay=layout, s=sh: q(p, lay, s), trials
+                lambda run=query, root=path, lay=layout, shards=sh: run(root, lay, shards), trials
             )
             seconds = median(times)
             results.append(
@@ -243,13 +251,14 @@ def _layout_comparison(fact: pd.DataFrame, root: Path, trials: int) -> dict[str,
     # is the design the pipeline would otherwise keep.
     base = frame[frame["layout"] == "monolithic"].set_index("query")["seconds"]
     frame["speedup_vs_monolithic"] = frame.apply(
-        lambda r: round(base[r["query"]] / r["seconds"], 3) if r["seconds"] else 0.0, axis=1
+        lambda row: round(base[row["query"]] / row["seconds"], 3) if row["seconds"] else 0.0,
+        axis=1,
     )
     base_bytes = frame[frame["layout"] == "monolithic"].set_index("query")["bytes_read"]
     frame["bytes_saved_pct"] = frame.apply(
-        lambda r: (
-            round(100 * (1 - r["bytes_read"] / base_bytes[r["query"]]), 1)
-            if base_bytes[r["query"]]
+        lambda row: (
+            round(100 * (1 - row["bytes_read"] / base_bytes[row["query"]]), 1)
+            if base_bytes[row["query"]]
             else 0.0
         ),
         axis=1,
@@ -259,12 +268,12 @@ def _layout_comparison(fact: pd.DataFrame, root: Path, trials: int) -> dict[str,
         "fact_rows": len(fact),
         "layouts": [
             {
-                "layout": s.layout,
-                "file_count": s.file_count,
-                "total_bytes": s.total_bytes,
-                "storage_overhead_pct": s.overhead_pct,
+                "layout": stat.layout,
+                "file_count": stat.file_count,
+                "total_bytes": stat.total_bytes,
+                "storage_overhead_pct": stat.overhead_pct,
             }
-            for s in stats
+            for stat in stats
         ],
         "cells": frame.to_dict(orient="records"),
         "all_correct": bool(frame["correct"].all()),
@@ -301,7 +310,8 @@ def _bench_pipeline_flag(settings: Settings, work: Path, trials: int) -> dict[st
         )
         run_storage = get_storage(run_settings)
         times, result = time_callable(
-            lambda s=run_storage, c=run_settings: clean_all(storage=s, settings=c), trials
+            lambda store=run_storage, conf=run_settings: clean_all(storage=store, settings=conf),
+            trials,
         )
         timings[label] = median(times)
         counts[label] = result
@@ -328,7 +338,7 @@ def _bench_pipeline_flag(settings: Settings, work: Path, trials: int) -> dict[st
         "speedup": round(base / fast_s, 3) if fast_s else 0.0,
         "row_counts_identical": counts["baseline"] == counts["fast_reader"],
         "tables": tables,
-        "all_tables_identical": all(t["identical"] for t in tables),
+        "all_tables_identical": all(entry["identical"] for entry in tables),
     }
 
 
@@ -412,7 +422,7 @@ def run_all(
         "trials": trials,
         "fragmentation_scale": FRAGMENTATION_SCALE,
         "fact_rows_1x": len(fact),
-        "workloads": [w.to_dict() for w in workloads],
+        "workloads": [workload.to_dict() for workload in workloads],
         "layout_comparison": layout,
         "selectivity_sweep": {
             "rows": sweep.to_dict(orient="records"),

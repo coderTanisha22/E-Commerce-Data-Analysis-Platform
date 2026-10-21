@@ -1,13 +1,14 @@
--- Calendar dimension spanning the whole Olist timeline, not just the
--- analytical window, so a date filter can be applied in the mart layer rather
--- than being baked into the dimension.
-with spine as (
+-- Grain: one row per calendar day.
+--
+-- Spans the whole Olist timeline rather than the analytical window, so a date
+-- filter can be applied in the mart layer instead of being baked in here.
+WITH calendar_days AS (
   {{ date_spine_days('2016-01-01', '2018-12-31') }}
 )
-select
+SELECT
   date_day,
-  extract(year from date_day) as year,
-  extract(month from date_day) as month,
-  {{ day_of_week('date_day') }} as day_of_week,
-  {{ year_month('date_day') }} as year_month
-from spine
+  EXTRACT(YEAR FROM date_day)        AS year,
+  EXTRACT(MONTH FROM date_day)       AS month,
+  {{ day_of_week('date_day') }}      AS day_of_week,
+  {{ year_month('date_day') }}       AS year_month
+FROM calendar_days

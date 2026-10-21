@@ -39,7 +39,7 @@ STATUSES = ("Urgent", "Monitor", "Healthy", "Insufficient data")
 def status_shares(table: pd.DataFrame) -> dict[str, float]:
     """Return each status as a percentage of all rows."""
     counts = table["status"].value_counts()
-    return {s: round(100 * counts.get(s, 0) / len(table), 3) for s in STATUSES}
+    return {status: round(100 * counts.get(status, 0) / len(table), 3) for status in STATUSES}
 
 
 def seed_stability(order_lines: pd.DataFrame, orders: pd.DataFrame, seeds: range) -> pd.DataFrame:
@@ -85,15 +85,21 @@ def sensitivity(order_lines: pd.DataFrame, orders: pd.DataFrame) -> pd.DataFrame
 
 def reproducibility_check(order_lines: pd.DataFrame, orders: pd.DataFrame) -> dict:
     """Confirm one seed reproduces exactly and another seed does not."""
-    a = frame_digest(generate_synthetic_inventory(order_lines, orders, GeneratorParams(seed=42)))
-    b = frame_digest(generate_synthetic_inventory(order_lines, orders, GeneratorParams(seed=42)))
-    c = frame_digest(generate_synthetic_inventory(order_lines, orders, GeneratorParams(seed=7)))
+    first_run = frame_digest(
+        generate_synthetic_inventory(order_lines, orders, GeneratorParams(seed=42))
+    )
+    second_run = frame_digest(
+        generate_synthetic_inventory(order_lines, orders, GeneratorParams(seed=42))
+    )
+    other_seed = frame_digest(
+        generate_synthetic_inventory(order_lines, orders, GeneratorParams(seed=7))
+    )
     return {
-        "seed_42_run_1": a,
-        "seed_42_run_2": b,
-        "seed_7": c,
-        "identical": a == b,
-        "differs_across_seeds": a != c,
+        "seed_42_run_1": first_run,
+        "seed_42_run_2": second_run,
+        "seed_7": other_seed,
+        "identical": first_run == second_run,
+        "differs_across_seeds": first_run != other_seed,
     }
 
 
@@ -167,7 +173,7 @@ def plot_stock_scales_with_speed(table: pd.DataFrame, out_dir: Path) -> Path:
     positions = np.arange(len(grouped))
     ax.bar(positions - width / 2, grouped["reorder"], width, color=ACCENT, label="Reorder point")
     ax.bar(positions + width / 2, grouped["stock"], width, color=WARNING, label="Current quantity")
-    ax.set_xticks(positions, [f"D{i + 1}" for i in range(len(grouped))])
+    ax.set_xticks(positions, [f"D{index + 1}" for index in range(len(grouped))])
     ax.set_yscale("log")
     ax.set_title(
         "Synthetic stock scales with real sales speed (mean per decile)",
@@ -214,10 +220,10 @@ def spread(stability: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(
         {
             "status": list(STATUSES),
-            "mean_pct": [round(stability[s].mean(), 3) for s in STATUSES],
-            "std_pct": [round(float(np.std(stability[s], ddof=1)), 4) for s in STATUSES],
-            "min_pct": [round(stability[s].min(), 3) for s in STATUSES],
-            "max_pct": [round(stability[s].max(), 3) for s in STATUSES],
+            "mean_pct": [round(stability[status].mean(), 3) for status in STATUSES],
+            "std_pct": [round(float(np.std(stability[status], ddof=1)), 4) for status in STATUSES],
+            "min_pct": [round(stability[status].min(), 3) for status in STATUSES],
+            "max_pct": [round(stability[status].max(), 3) for status in STATUSES],
         }
     )
 

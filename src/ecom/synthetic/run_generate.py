@@ -51,8 +51,10 @@ def build_manifest(
         "sha256": frame_digest(df),
         "seed": params.seed,
         "parameters": params.as_dict(),
-        "filter_funnel": [{"step": s, "count": int(c)} for s, c in funnel],
-        "status_counts": {k: int(v) for k, v in df["status"].value_counts().items()},
+        "filter_funnel": [{"step": step, "count": int(count)} for step, count in funnel],
+        "status_counts": {
+            status: int(count) for status, count in df["status"].value_counts().items()
+        },
         "sellers": int(df["seller_id"].nunique()),
         "products": int(df["product_id"].nunique()),
     }

@@ -1,2 +1,7 @@
-select seller_id, seller_zip_code_prefix, seller_city, seller_state
-from {{ ref('stg_sellers') }}
+-- Grain: one row per seller.
+SELECT
+  seller_id,
+  seller_zip_code_prefix,
+  seller_city,
+  seller_state
+FROM {{ ref('stg_sellers') }}
