@@ -61,6 +61,15 @@ class Settings(BaseSettings):
     window_end: date = WINDOW_END
     log_level: str = "INFO"
 
+    fast_reader: bool = False
+    """Parse raw CSVs with Arrow instead of pandas during cleaning.
+
+    Off by default so the published numbers come from the path the project has
+    always run. Both paths produce an identical processed layer -- that
+    equivalence is asserted by tests/test_bench.py and by ``ecom bench
+    --verify-flag`` -- so this is a pure performance switch, not a variant.
+    Set ECOM_FAST_READER=1 to enable."""
+
     reports_dir: Path = Field(default=Path("reports"))
 
     def resolve(self, value: Path) -> Path:

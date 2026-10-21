@@ -33,7 +33,12 @@ def trim_whitespace(df: pd.DataFrame) -> pd.DataFrame:
     """
     out = df.copy()
     for column in out.columns:
-        if out[column].dtype == "object" or str(out[column].dtype) == "string":
+        # startswith rather than equality so this also matches the Arrow-backed
+        # "string[pyarrow]" dtype the fast reader produces. On Arrow storage the
+        # same .str.strip() call dispatches to a native kernel instead of
+        # running once per cell.
+        dtype = str(out[column].dtype)
+        if out[column].dtype == "object" or dtype.startswith("string"):
             out[column] = out[column].str.strip()
     return out
 

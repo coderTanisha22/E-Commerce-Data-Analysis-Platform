@@ -16,6 +16,9 @@ import sys
 from ecom import logging_setup
 from ecom.analysis.profile import build_profile
 from ecom.analysis.visualize import render_all
+from ecom.bench.harness import DEFAULT_TRIALS
+from ecom.bench.report import load_results, render_figures, render_markdown
+from ecom.bench.run_bench import RESULTS_SUBDIR, run_all
 from ecom.cleaning.run_clean import clean_all
 from ecom.config import get_settings
 from ecom.ingestion.ingest import ingest_all
@@ -74,6 +77,51 @@ def _cmd_validate_inventory(_: argparse.Namespace) -> int:
         print(f"    {row.status:<18} {row.mean_pct:>7.3f}% +/- {row.std_pct:.4f}")
     for path in results["figures"]:
         print(f"  wrote {path}")
+    return 0
+
+
+def _cmd_bench(args: argparse.Namespace) -> int:
+    """Run the optimisation study, then render its report and figures."""
+    settings = get_settings()
+    out = settings.resolve(settings.reports_dir) / RESULTS_SUBDIR
+
+    if args.report_only:
+        results = load_results(out / "results.json")
+        print(f"re-rendering from {out / 'results.json'}")
+    else:
+        results = run_all(trials=args.trials)
+
+    figures = render_figures(results, out / "figures")
+    report = out / "optimisation_report.md"
+    report.write_text(render_markdown(results, figures))
+
+    flag = results["pipeline_flag"]
+    sweep = results["selectivity_sweep"]
+    print(
+        f"  fast reader on clean stage : {flag['speedup']:.2f}x "
+        f"({flag['baseline_s']:.2f}s -> {flag['fast_reader_s']:.2f}s)"
+    )
+    print(f"  processed layer identical  : {flag['all_tables_identical']}")
+    print(f"  partition crossover        : {sweep['crossover_selectivity_pct']}% selectivity")
+    shards = results["shard_sweep"]
+    print(
+        f"  shards recommended         : {shards['recommended_shards']}, "
+        f"{shards['recommended_speedup']:.1f}x, "
+        f"+{shards['recommended_storage_overhead_pct']:.1f}% storage "
+        f"(within the {shards['storage_budget_pct']:.0f}% budget)"
+    )
+    print(
+        f"  shards fastest             : {shards['fastest_shards']}, "
+        f"{shards['fastest_speedup']:.1f}x, "
+        f"+{shards['fastest_storage_overhead_pct']:.1f}% storage - not recommended"
+    )
+    for workload in results["workloads"]:
+        rejected = [s["name"] for s in workload["strategies"] if s["matches_baseline"] is False]
+        if rejected:
+            print(f"  rejected (wrong answer)    : {', '.join(rejected)}")
+    for path in figures:
+        print(f"  wrote {path}")
+    print(f"  wrote {report}")
     return 0
 
 
@@ -140,6 +188,20 @@ def build_parser() -> argparse.ArgumentParser:
     analyse = sub.add_parser("analyse", help="profile the processed layer and render figures")
     analyse.add_argument("--no-figures", action="store_true", help="skip PNG rendering")
     analyse.set_defaults(func=_cmd_analyse)
+
+    bench = sub.add_parser("bench", help="run the pipeline optimisation study")
+    bench.add_argument(
+        "--trials",
+        type=int,
+        default=DEFAULT_TRIALS,
+        help=f"measured runs per strategy after one warm-up (default {DEFAULT_TRIALS})",
+    )
+    bench.add_argument(
+        "--report-only",
+        action="store_true",
+        help="re-render the report and figures from the existing results.json",
+    )
+    bench.set_defaults(func=_cmd_bench)
 
     pipeline = sub.add_parser("pipeline", help="ingest + clean + analyse")
     pipeline.add_argument("--no-figures", action="store_true", help="skip PNG rendering")

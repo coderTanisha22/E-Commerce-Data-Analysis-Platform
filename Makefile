@@ -1,4 +1,4 @@
-.PHONY: help install check fmt lint test pipeline ingest clean inventory validate-inventory analyse minio-up minio-down
+.PHONY: help install check fmt lint test pipeline ingest clean inventory validate-inventory analyse bench bench-report minio-up minio-down
 
 PY := ./.venv/bin/python
 VENV := ./.venv/bin
@@ -41,6 +41,12 @@ analyse:  ## processed -> profile.json + figures
 
 pipeline:  ## ingest + clean + analyse
 	$(PY) -m ecom.cli pipeline
+
+bench:  ## run the optimisation study -> results.json + report + figures
+	$(PY) -m ecom.cli bench
+
+bench-report:  ## re-render the optimisation report from existing results.json
+	$(PY) -m ecom.cli bench --report-only
 
 minio-up:  ## start MinIO, then set ECOM_STORAGE_BACKEND=minio
 	docker compose up -d minio

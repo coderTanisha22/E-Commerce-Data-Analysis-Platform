@@ -1,0 +1,862 @@
+{
+  "environment": {
+    "measured_at": "2026-10-21T08:26:09+00:00",
+    "python": "3.10.12",
+    "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+    "processor": "x86_64",
+    "pandas": "2.3.3",
+    "cache_state": "warm",
+    "caveat": "Single machine, single process, warm page cache. Relative costs between strategies are the result; absolute times are not portable."
+  },
+  "trials": 5,
+  "fragmentation_scale": 4,
+  "fact_rows_1x": 99130,
+  "workloads": [
+    {
+      "workload": "co-occurrence self-join",
+      "concept": "Join methods J1-J4; vectorised vs interpreted execution",
+      "unit": "order-product rows",
+      "input_rows": 102425,
+      "strategies": [
+        {
+          "name": "nested_loop_python",
+          "seconds_median": 0.088352,
+          "seconds_min": 0.087128,
+          "seconds_max": 0.093975,
+          "peak_mib": 7.38,
+          "rows_out": 4058,
+          "throughput_rows_per_s": 1159279,
+          "speedup_vs_baseline": 1.0,
+          "matches_baseline": null,
+          "note": "Current pipeline implementation.",
+          "failed": ""
+        },
+        {
+          "name": "hash_join_pandas",
+          "seconds_median": 0.063148,
+          "seconds_min": 0.059981,
+          "seconds_max": 0.063729,
+          "peak_mib": 18.52,
+          "rows_out": 4058,
+          "throughput_rows_per_s": 1621977,
+          "speedup_vs_baseline": 1.399,
+          "matches_baseline": true,
+          "note": "",
+          "failed": ""
+        },
+        {
+          "name": "sort_merge_numpy",
+          "seconds_median": 0.147364,
+          "seconds_min": 0.142169,
+          "seconds_max": 0.147916,
+          "peak_mib": 11.77,
+          "rows_out": 4058,
+          "throughput_rows_per_s": 695046,
+          "speedup_vs_baseline": 0.6,
+          "matches_baseline": true,
+          "note": "Pair generation is vectorised but the per-basket loop is not.",
+          "failed": ""
+        },
+        {
+          "name": "sparse_matrix_scipy",
+          "seconds_median": 0.044202,
+          "seconds_min": 0.042742,
+          "seconds_max": 0.04927,
+          "peak_mib": 8.41,
+          "rows_out": 4058,
+          "throughput_rows_per_s": 2317201,
+          "speedup_vs_baseline": 1.999,
+          "matches_baseline": true,
+          "note": "",
+          "failed": ""
+        },
+        {
+          "name": "sql_duckdb",
+          "seconds_median": 0.060638,
+          "seconds_min": 0.058109,
+          "seconds_max": 0.075878,
+          "peak_mib": 0.91,
+          "rows_out": 4058,
+          "throughput_rows_per_s": 1689125,
+          "speedup_vs_baseline": 1.457,
+          "matches_baseline": true,
+          "note": "Plan chosen by a cost-based optimiser, not by us.",
+          "failed": ""
+        }
+      ]
+    },
+    {
+      "workload": "CSV row count",
+      "concept": "Scan cost; correctness under quoted newlines",
+      "unit": "file",
+      "input_rows": 0,
+      "strategies": [
+        {
+          "name": "csv_reader_python",
+          "seconds_median": 0.111549,
+          "seconds_min": 0.109738,
+          "seconds_max": 0.116577,
+          "peak_mib": 0.0,
+          "rows_out": 0,
+          "throughput_rows_per_s": 0,
+          "speedup_vs_baseline": 1.0,
+          "matches_baseline": null,
+          "note": "",
+          "failed": ""
+        },
+        {
+          "name": "arrow_csv_native",
+          "seconds_median": 0.01428,
+          "seconds_min": 0.013858,
+          "seconds_max": 0.017671,
+          "peak_mib": 0.0,
+          "rows_out": 0,
+          "throughput_rows_per_s": 0,
+          "speedup_vs_baseline": 7.811,
+          "matches_baseline": true,
+          "note": "",
+          "failed": ""
+        },
+        {
+          "name": "newline_bytes_unsafe",
+          "seconds_median": 0.008959,
+          "seconds_min": 0.008856,
+          "seconds_max": 0.008983,
+          "peak_mib": 0.0,
+          "rows_out": 0,
+          "throughput_rows_per_s": 0,
+          "speedup_vs_baseline": 12.452,
+          "matches_baseline": false,
+          "note": "Fastest and wrong: counts newlines inside quoted review text as row terminators, overcounting this file.",
+          "failed": ""
+        }
+      ]
+    },
+    {
+      "workload": "CSV read + whitespace trim",
+      "concept": "Columnar in-memory layout; vectorisation; measure before optimising",
+      "unit": "string cells",
+      "input_rows": 795528,
+      "strategies": [
+        {
+          "name": "read_string_then_trim",
+          "seconds_median": 0.312167,
+          "seconds_min": 0.309754,
+          "seconds_max": 0.325542,
+          "peak_mib": 58.81,
+          "rows_out": 99441,
+          "throughput_rows_per_s": 2548407,
+          "speedup_vs_baseline": 1.0,
+          "matches_baseline": null,
+          "note": "Current pipeline read path.",
+          "failed": ""
+        },
+        {
+          "name": "read_object_then_trim",
+          "seconds_median": 0.30628,
+          "seconds_min": 0.293087,
+          "seconds_max": 0.322621,
+          "peak_mib": 62.12,
+          "rows_out": 99441,
+          "throughput_rows_per_s": 2597388,
+          "speedup_vs_baseline": 1.019,
+          "matches_baseline": true,
+          "note": "",
+          "failed": ""
+        },
+        {
+          "name": "read_arrow_then_trim",
+          "seconds_median": 0.250452,
+          "seconds_min": 0.227463,
+          "seconds_max": 0.28313,
+          "peak_mib": 8.36,
+          "rows_out": 99441,
+          "throughput_rows_per_s": 3176366,
+          "speedup_vs_baseline": 1.246,
+          "matches_baseline": true,
+          "note": "Identical trim code; only the dtype the CSV was read into differs.",
+          "failed": ""
+        },
+        {
+          "name": "read_arrow_detect_skip",
+          "seconds_median": 0.23508,
+          "seconds_min": 0.223636,
+          "seconds_max": 0.27167,
+          "peak_mib": 8.36,
+          "rows_out": 99441,
+          "throughput_rows_per_s": 3384069,
+          "speedup_vs_baseline": 1.328,
+          "matches_baseline": true,
+          "note": "No Olist column carries padding, so this skips the trim entirely.",
+          "failed": ""
+        },
+        {
+          "name": "arrow_parser_then_trim",
+          "seconds_median": 0.026202,
+          "seconds_min": 0.025721,
+          "seconds_max": 0.030369,
+          "peak_mib": 0.05,
+          "rows_out": 99441,
+          "throughput_rows_per_s": 30361373,
+          "speedup_vs_baseline": 11.914,
+          "matches_baseline": true,
+          "note": "",
+          "failed": ""
+        }
+      ]
+    },
+    {
+      "workload": "timestamp parsing",
+      "concept": "Avoiding per-value interpretation; Arrow kernels",
+      "unit": "timestamps",
+      "input_rows": 99441,
+      "strategies": [
+        {
+          "name": "pandas_inferred",
+          "seconds_median": 0.01017,
+          "seconds_min": 0.009889,
+          "seconds_max": 0.010932,
+          "peak_mib": 1.52,
+          "rows_out": 99441,
+          "throughput_rows_per_s": 9778315,
+          "speedup_vs_baseline": 1.0,
+          "matches_baseline": null,
+          "note": "",
+          "failed": ""
+        },
+        {
+          "name": "pandas_explicit_format",
+          "seconds_median": 0.009671,
+          "seconds_min": 0.009629,
+          "seconds_max": 0.010116,
+          "peak_mib": 1.52,
+          "rows_out": 99441,
+          "throughput_rows_per_s": 10281884,
+          "speedup_vs_baseline": 1.051,
+          "matches_baseline": true,
+          "note": "",
+          "failed": ""
+        },
+        {
+          "name": "arrow_strptime",
+          "seconds_median": 0.012569,
+          "seconds_min": 0.012373,
+          "seconds_max": 0.013197,
+          "peak_mib": 0.86,
+          "rows_out": 99441,
+          "throughput_rows_per_s": 7911559,
+          "speedup_vs_baseline": 0.809,
+          "matches_baseline": true,
+          "note": "",
+          "failed": ""
+        }
+      ]
+    },
+    {
+      "workload": "Parquet projection",
+      "concept": "Projection pushdown; columnar storage",
+      "unit": "fact rows",
+      "input_rows": 99130,
+      "strategies": [
+        {
+          "name": "read_all_columns",
+          "seconds_median": 0.048136,
+          "seconds_min": 0.044766,
+          "seconds_max": 0.057578,
+          "peak_mib": 39.45,
+          "rows_out": 99130,
+          "throughput_rows_per_s": 2059384,
+          "speedup_vs_baseline": 1.0,
+          "matches_baseline": null,
+          "note": "",
+          "failed": ""
+        },
+        {
+          "name": "projection_pushdown",
+          "seconds_median": 0.009012,
+          "seconds_min": 0.008668,
+          "seconds_max": 0.013474,
+          "peak_mib": 10.04,
+          "rows_out": 99130,
+          "throughput_rows_per_s": 11000209,
+          "speedup_vs_baseline": 5.342,
+          "matches_baseline": true,
+          "note": "Reads 2 of 12 columns; the rest are never decompressed.",
+          "failed": ""
+        }
+      ]
+    }
+  ],
+  "layout_comparison": {
+    "fact_rows": 396520,
+    "layouts": [
+      {
+        "layout": "monolithic",
+        "file_count": 1,
+        "total_bytes": 42502057,
+        "storage_overhead_pct": 0.0
+      },
+      {
+        "layout": "horizontal",
+        "file_count": 19,
+        "total_bytes": 33951219,
+        "storage_overhead_pct": -20.1
+      },
+      {
+        "layout": "vertical",
+        "file_count": 2,
+        "total_bytes": 44112050,
+        "storage_overhead_pct": 3.8
+      },
+      {
+        "layout": "sharded_16",
+        "file_count": 16,
+        "total_bytes": 43166414,
+        "storage_overhead_pct": 1.6
+      }
+    ],
+    "cells": [
+      {
+        "query": "total_revenue",
+        "layout": "monolithic",
+        "seconds": 0.00326,
+        "bytes_read": 42502057,
+        "correct": true,
+        "speedup_vs_monolithic": 1.0,
+        "bytes_saved_pct": 0.0
+      },
+      {
+        "query": "total_revenue",
+        "layout": "horizontal",
+        "seconds": 0.01755,
+        "bytes_read": 33951219,
+        "correct": true,
+        "speedup_vs_monolithic": 0.186,
+        "bytes_saved_pct": 20.1
+      },
+      {
+        "query": "total_revenue",
+        "layout": "vertical",
+        "seconds": 0.00395,
+        "bytes_read": 25331522,
+        "correct": true,
+        "speedup_vs_monolithic": 0.825,
+        "bytes_saved_pct": 40.4
+      },
+      {
+        "query": "total_revenue",
+        "layout": "sharded_16",
+        "seconds": 0.01484,
+        "bytes_read": 43166414,
+        "correct": true,
+        "speedup_vs_monolithic": 0.22,
+        "bytes_saved_pct": -1.6
+      },
+      {
+        "query": "two_month_revenue",
+        "layout": "monolithic",
+        "seconds": 0.02317,
+        "bytes_read": 42502057,
+        "correct": true,
+        "speedup_vs_monolithic": 1.0,
+        "bytes_saved_pct": 0.0
+      },
+      {
+        "query": "two_month_revenue",
+        "layout": "horizontal",
+        "seconds": 0.00636,
+        "bytes_read": 1479572,
+        "correct": true,
+        "speedup_vs_monolithic": 3.643,
+        "bytes_saved_pct": 96.5
+      },
+      {
+        "query": "two_month_revenue",
+        "layout": "vertical",
+        "seconds": 0.91253,
+        "bytes_read": 44112050,
+        "correct": true,
+        "speedup_vs_monolithic": 0.025,
+        "bytes_saved_pct": -3.8
+      },
+      {
+        "query": "two_month_revenue",
+        "layout": "sharded_16",
+        "seconds": 0.05303,
+        "bytes_read": 43166414,
+        "correct": true,
+        "speedup_vs_monolithic": 0.437,
+        "bytes_saved_pct": -1.6
+      },
+      {
+        "query": "seller_revenue",
+        "layout": "monolithic",
+        "seconds": 0.06954,
+        "bytes_read": 42502057,
+        "correct": true,
+        "speedup_vs_monolithic": 1.0,
+        "bytes_saved_pct": 0.0
+      },
+      {
+        "query": "seller_revenue",
+        "layout": "horizontal",
+        "seconds": 0.08181,
+        "bytes_read": 33951219,
+        "correct": true,
+        "speedup_vs_monolithic": 0.85,
+        "bytes_saved_pct": 20.1
+      },
+      {
+        "query": "seller_revenue",
+        "layout": "vertical",
+        "seconds": 0.07081,
+        "bytes_read": 25331522,
+        "correct": true,
+        "speedup_vs_monolithic": 0.982,
+        "bytes_saved_pct": 40.4
+      },
+      {
+        "query": "seller_revenue",
+        "layout": "sharded_16",
+        "seconds": 0.00677,
+        "bytes_read": 3308201,
+        "correct": true,
+        "speedup_vs_monolithic": 10.272,
+        "bytes_saved_pct": 92.2
+      }
+    ],
+    "all_correct": true
+  },
+  "selectivity_sweep": {
+    "rows": [
+      {
+        "months_selected": 1,
+        "selectivity_pct": 5.3,
+        "rows_matched": 6844,
+        "monolithic_s": 0.01992,
+        "horizontal_s": 0.00377,
+        "speedup": 5.287,
+        "monolithic_bytes": 42502057,
+        "horizontal_bytes": 575692,
+        "bytes_saved_pct": 98.6,
+        "answers_correct": true
+      },
+      {
+        "months_selected": 2,
+        "selectivity_pct": 10.5,
+        "rows_matched": 17376,
+        "monolithic_s": 0.02185,
+        "horizontal_s": 0.00628,
+        "speedup": 3.48,
+        "monolithic_bytes": 42502057,
+        "horizontal_bytes": 1479572,
+        "bytes_saved_pct": 96.5,
+        "answers_correct": true
+      },
+      {
+        "months_selected": 3,
+        "selectivity_pct": 15.8,
+        "rows_matched": 26880,
+        "monolithic_s": 0.0258,
+        "horizontal_s": 0.0086,
+        "speedup": 2.999,
+        "monolithic_bytes": 42502057,
+        "horizontal_bytes": 2271409,
+        "bytes_saved_pct": 94.7,
+        "answers_correct": true
+      },
+      {
+        "months_selected": 5,
+        "selectivity_pct": 26.3,
+        "rows_matched": 54608,
+        "monolithic_s": 0.02697,
+        "horizontal_s": 0.01335,
+        "speedup": 2.02,
+        "monolithic_bytes": 42502057,
+        "horizontal_bytes": 4584808,
+        "bytes_saved_pct": 89.2,
+        "answers_correct": true
+      },
+      {
+        "months_selected": 7,
+        "selectivity_pct": 36.8,
+        "rows_matched": 88212,
+        "monolithic_s": 0.02666,
+        "horizontal_s": 0.01838,
+        "speedup": 1.45,
+        "monolithic_bytes": 42502057,
+        "horizontal_bytes": 7458514,
+        "bytes_saved_pct": 82.5,
+        "answers_correct": true
+      },
+      {
+        "months_selected": 10,
+        "selectivity_pct": 52.6,
+        "rows_matched": 154584,
+        "monolithic_s": 0.02825,
+        "horizontal_s": 0.02807,
+        "speedup": 1.007,
+        "monolithic_bytes": 42502057,
+        "horizontal_bytes": 13102916,
+        "bytes_saved_pct": 69.2,
+        "answers_correct": true
+      },
+      {
+        "months_selected": 13,
+        "selectivity_pct": 68.4,
+        "rows_matched": 233808,
+        "monolithic_s": 0.02819,
+        "horizontal_s": 0.03746,
+        "speedup": 0.752,
+        "monolithic_bytes": 42502057,
+        "horizontal_bytes": 19759915,
+        "bytes_saved_pct": 53.5,
+        "answers_correct": true
+      },
+      {
+        "months_selected": 16,
+        "selectivity_pct": 84.2,
+        "rows_matched": 319136,
+        "monolithic_s": 0.02957,
+        "horizontal_s": 0.04884,
+        "speedup": 0.605,
+        "monolithic_bytes": 42502057,
+        "horizontal_bytes": 27052755,
+        "bytes_saved_pct": 36.3,
+        "answers_correct": true
+      },
+      {
+        "months_selected": 19,
+        "selectivity_pct": 100.0,
+        "rows_matched": 396520,
+        "monolithic_s": 0.02664,
+        "horizontal_s": 0.05633,
+        "speedup": 0.473,
+        "monolithic_bytes": 42502057,
+        "horizontal_bytes": 33951219,
+        "bytes_saved_pct": 20.1,
+        "answers_correct": true
+      }
+    ],
+    "crossover_selectivity_pct": 53.0,
+    "all_correct": true
+  },
+  "shard_sweep": {
+    "rows": [
+      {
+        "shards": 1,
+        "layout": "monolithic",
+        "lookup_s": 0.07166,
+        "speedup": 1.0,
+        "bytes_read": 42502057,
+        "file_count": 1,
+        "total_bytes": 42502057,
+        "storage_overhead_pct": 0.0,
+        "answer_correct": true
+      },
+      {
+        "shards": 4,
+        "layout": "sharded_4",
+        "lookup_s": 0.01425,
+        "speedup": 5.028,
+        "bytes_read": 10494580,
+        "file_count": 4,
+        "total_bytes": 42129823,
+        "storage_overhead_pct": -0.9,
+        "answer_correct": true
+      },
+      {
+        "shards": 16,
+        "layout": "sharded_16",
+        "lookup_s": 0.0059,
+        "speedup": 12.144,
+        "bytes_read": 3308201,
+        "file_count": 16,
+        "total_bytes": 43166414,
+        "storage_overhead_pct": 1.6,
+        "answer_correct": true
+      },
+      {
+        "shards": 64,
+        "layout": "sharded_64",
+        "lookup_s": 0.00384,
+        "speedup": 18.67,
+        "bytes_read": 1051825,
+        "file_count": 64,
+        "total_bytes": 44644569,
+        "storage_overhead_pct": 5.0,
+        "answer_correct": true
+      },
+      {
+        "shards": 256,
+        "layout": "sharded_256",
+        "lookup_s": 0.0034,
+        "speedup": 21.075,
+        "bytes_read": 630556,
+        "file_count": 256,
+        "total_bytes": 46664427,
+        "storage_overhead_pct": 9.8,
+        "answer_correct": true
+      },
+      {
+        "shards": 1024,
+        "layout": "sharded_1024",
+        "lookup_s": 0.00319,
+        "speedup": 22.481,
+        "bytes_read": 227787,
+        "file_count": 1024,
+        "total_bytes": 53362462,
+        "storage_overhead_pct": 25.6,
+        "answer_correct": true
+      },
+      {
+        "shards": 4096,
+        "layout": "sharded_4096",
+        "lookup_s": 0.00306,
+        "speedup": 23.426,
+        "bytes_read": 197771,
+        "file_count": 3850,
+        "total_bytes": 76381372,
+        "storage_overhead_pct": 79.7,
+        "answer_correct": true
+      }
+    ],
+    "storage_budget_pct": 10.0,
+    "recommended_shards": 64,
+    "recommended_speedup": 18.67,
+    "recommended_storage_overhead_pct": 5.0,
+    "recommended_fits_budget": true,
+    "fastest_shards": 4096,
+    "fastest_speedup": 23.426,
+    "fastest_storage_overhead_pct": 79.7,
+    "all_correct": true
+  },
+  "materialisation": [
+    {
+      "approach": "materialise_each_stage",
+      "seconds": 0.83302,
+      "intermediate_bytes": 43229464,
+      "overhead_pct": 625.2,
+      "restartable": true,
+      "answers_identical": true
+    },
+    {
+      "approach": "pipeline_in_memory",
+      "seconds": 0.11487,
+      "intermediate_bytes": 0,
+      "overhead_pct": 0.0,
+      "restartable": false,
+      "answers_identical": true
+    }
+  ],
+  "pipeline_flag": {
+    "baseline_s": 1.7434,
+    "fast_reader_s": 1.3722,
+    "speedup": 1.271,
+    "row_counts_identical": true,
+    "tables": [
+      {
+        "table": "orders",
+        "rows": 99441,
+        "identical": true
+      },
+      {
+        "table": "order_lines",
+        "rows": 102425,
+        "identical": true
+      },
+      {
+        "table": "order_products",
+        "rows": 102425,
+        "identical": true
+      },
+      {
+        "table": "products",
+        "rows": 32951,
+        "identical": true
+      },
+      {
+        "table": "customers",
+        "rows": 99441,
+        "identical": true
+      },
+      {
+        "table": "sellers",
+        "rows": 3095,
+        "identical": true
+      }
+    ],
+    "all_tables_identical": true
+  },
+  "volume_scaling": {
+    "rows": [
+      {
+        "strategy": "nested_loop_python",
+        "factor": 1,
+        "input_rows": 102425,
+        "pairs_out": 4058,
+        "seconds": 0.11005,
+        "rows_per_s": 930720
+      },
+      {
+        "strategy": "hash_join_pandas",
+        "factor": 1,
+        "input_rows": 102425,
+        "pairs_out": 4058,
+        "seconds": 0.07811,
+        "rows_per_s": 1311317
+      },
+      {
+        "strategy": "sort_merge_numpy",
+        "factor": 1,
+        "input_rows": 102425,
+        "pairs_out": 4058,
+        "seconds": 0.17462,
+        "rows_per_s": 586573
+      },
+      {
+        "strategy": "sparse_matrix_scipy",
+        "factor": 1,
+        "input_rows": 102425,
+        "pairs_out": 4058,
+        "seconds": 0.05822,
+        "rows_per_s": 1759297
+      },
+      {
+        "strategy": "sql_duckdb",
+        "factor": 1,
+        "input_rows": 102425,
+        "pairs_out": 4058,
+        "seconds": 0.0663,
+        "rows_per_s": 1544854
+      },
+      {
+        "strategy": "nested_loop_python",
+        "factor": 2,
+        "input_rows": 204850,
+        "pairs_out": 8116,
+        "seconds": 0.41453,
+        "rows_per_s": 494170
+      },
+      {
+        "strategy": "hash_join_pandas",
+        "factor": 2,
+        "input_rows": 204850,
+        "pairs_out": 8116,
+        "seconds": 0.14026,
+        "rows_per_s": 1460536
+      },
+      {
+        "strategy": "sort_merge_numpy",
+        "factor": 2,
+        "input_rows": 204850,
+        "pairs_out": 8116,
+        "seconds": 0.5497,
+        "rows_per_s": 372659
+      },
+      {
+        "strategy": "sparse_matrix_scipy",
+        "factor": 2,
+        "input_rows": 204850,
+        "pairs_out": 8116,
+        "seconds": 0.12971,
+        "rows_per_s": 1579281
+      },
+      {
+        "strategy": "sql_duckdb",
+        "factor": 2,
+        "input_rows": 204850,
+        "pairs_out": 8116,
+        "seconds": 0.11552,
+        "rows_per_s": 1773213
+      },
+      {
+        "strategy": "nested_loop_python",
+        "factor": 4,
+        "input_rows": 409700,
+        "pairs_out": 16232,
+        "seconds": 0.70075,
+        "rows_per_s": 584657
+      },
+      {
+        "strategy": "hash_join_pandas",
+        "factor": 4,
+        "input_rows": 409700,
+        "pairs_out": 16232,
+        "seconds": 0.33646,
+        "rows_per_s": 1217681
+      },
+      {
+        "strategy": "sort_merge_numpy",
+        "factor": 4,
+        "input_rows": 409700,
+        "pairs_out": 16232,
+        "seconds": 1.08904,
+        "rows_per_s": 376202
+      },
+      {
+        "strategy": "sparse_matrix_scipy",
+        "factor": 4,
+        "input_rows": 409700,
+        "pairs_out": 16232,
+        "seconds": 0.32122,
+        "rows_per_s": 1275467
+      },
+      {
+        "strategy": "sql_duckdb",
+        "factor": 4,
+        "input_rows": 409700,
+        "pairs_out": 16232,
+        "seconds": 0.1932,
+        "rows_per_s": 2120603
+      },
+      {
+        "strategy": "nested_loop_python",
+        "factor": 8,
+        "input_rows": 819400,
+        "pairs_out": 32464,
+        "seconds": 1.27905,
+        "rows_per_s": 640633
+      },
+      {
+        "strategy": "hash_join_pandas",
+        "factor": 8,
+        "input_rows": 819400,
+        "pairs_out": 32464,
+        "seconds": 0.66658,
+        "rows_per_s": 1229258
+      },
+      {
+        "strategy": "sort_merge_numpy",
+        "factor": 8,
+        "input_rows": 819400,
+        "pairs_out": 32464,
+        "seconds": 2.05796,
+        "rows_per_s": 398162
+      },
+      {
+        "strategy": "sparse_matrix_scipy",
+        "factor": 8,
+        "input_rows": 819400,
+        "pairs_out": 32464,
+        "seconds": 0.60332,
+        "rows_per_s": 1358146
+      },
+      {
+        "strategy": "sql_duckdb",
+        "factor": 8,
+        "input_rows": 819400,
+        "pairs_out": 32464,
+        "seconds": 0.31042,
+        "rows_per_s": 2639641
+      }
+    ],
+    "exponents": {
+      "nested_loop_python": 1.137,
+      "hash_join_pandas": 1.054,
+      "sort_merge_numpy": 1.166,
+      "sparse_matrix_scipy": 1.143,
+      "sql_duckdb": 0.742
+    }
+  }
+}

@@ -66,6 +66,9 @@ ignore = [
 #   PTH123 - builtin open() is fine; these files predate the pathlib rule
 "src/ecom/spark/*" = ["N803", "N806", "ARG001", "N812", "PTH123"]
 "src/ecom/ingestion/source_reader.py" = ["PTH123"]
+# Chart labels use the real multiplication sign in figures ("3.3x" reads as
+# "3.3 ex" in a caption), so the ambiguous-character rule is wrong here.
+"src/ecom/bench/report.py" = ["RUF001"]
 "src/ecom/ingestion/raw_writer.py" = ["PTH123"]
 
 [tool.ruff.lint.pydocstyle]

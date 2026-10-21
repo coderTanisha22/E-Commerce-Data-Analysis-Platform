@@ -40,10 +40,18 @@ src/ecom/
   quality/               Quality gates for the pandas path
   synthetic/             Synthetic inventory generator and validation
   analysis/              Profiling metrics, co-occurrence graph, figures
+  bench/                 Optimisation study
+    harness.py             Timing, memory and correctness checking
+    workloads.py           Alternative implementations of the hot operations
+    fragmentation.py       Storage layouts and the queries that separate them
+    studies.py             Selectivity, shard-count, scaling and materialisation sweeps
+    run_bench.py           Benchmark orchestration (the only I/O here)
+    report.py              Renders results.json as Markdown and figures
 tests/                   pytest suite for both paths
 docs/
   CODING_STANDARDS.md    Conventions, implementing the project tracker's rules
   PROJECT_STATUS.md      Current state, measured findings, open decisions
+  OPTIMISATION_CONCEPTS.md  Course concept → where it is measured in the code
   contracts.md           Data contracts between pipeline stages
 data/                    Olist source CSVs as downloaded, never modified
 reports/                 Generated reports, figures and slide charts
@@ -82,6 +90,7 @@ make ingest        # source → raw zone
 make clean         # raw → processed  (pandas)
 make inventory     # generate the synthetic inventory table
 make analyse       # profiling metrics + figures
+make bench         # optimisation study → results.json + report + figures
 make check         # ruff + black + pytest
 ```
 
@@ -109,6 +118,7 @@ Every path is an environment variable with a local-filesystem default.
 | `ECOM_SOURCE_DIR` | `data` | pandas ingestion |
 | `ECOM_RAW_ROOT` | `data/raw` | pandas ingestion |
 | `ECOM_PROCESSED_ROOT` | `data/processed` | pandas cleaning |
+| `ECOM_FAST_READER` | `0` | pandas cleaning — parse raw CSVs with Arrow instead of pandas. Verified to produce an identical processed layer; 1.6× on the cleaning stage. |
 | `OLIST_SOURCE_DIR` | `data` | Spark-path ingestion |
 | `OLIST_RAW_ZONE_DIR` | `storage/raw/olist` | Spark-path ingestion and cleaning |
 | `OLIST_PROCESSED_ZONE_DIR` | `storage/processed/olist` | Spark cleaning |
@@ -122,5 +132,10 @@ Every path is an environment variable with a local-filesystem default.
 - `docs/CODING_STANDARDS.md` — conventions. The load-bearing rule is that a
   transform takes a DataFrame and returns a DataFrame and never does I/O.
 - `docs/contracts.md` — the data contract between ingestion and cleaning.
+- `docs/OPTIMISATION_CONCEPTS.md` — which course concept each benchmark
+  exercises, and which ones deliberately do not apply here.
+- `reports/benchmarks/optimisation_report.md` — the measured optimisation
+  study: strategy comparisons, the fragmentation matrix, the selectivity
+  crossover and the scaling curves.
 - `reports/synthetic_inventory_validation.md` — how the synthetic data was
   validated.
