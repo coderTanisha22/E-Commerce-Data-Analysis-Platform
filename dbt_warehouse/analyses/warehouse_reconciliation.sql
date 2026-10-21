@@ -16,6 +16,13 @@ fact_items AS (
   FROM {{ ref('fct_order_items') }}
 ),
 
+orders_check AS (
+  SELECT
+    (SELECT COUNT(*) FROM {{ ref('stg_orders') }})       AS orders_in_staging,
+    (SELECT COUNT(*) FROM {{ ref('fct_orders') }})       AS orders_with_items,
+    (SELECT COUNT(*) FROM {{ ref('dim_customers') }})    AS customers
+),
+
 memberships AS (
   SELECT COUNT(*) AS countable_order_product_rows
   FROM {{ ref('int_order_products') }}
@@ -35,11 +42,16 @@ SELECT
   source_items.price_sum                         AS source_price_sum,
   fact_items.price_sum                           AS fact_price_sum,
   source_items.price_sum - fact_items.price_sum  AS price_difference,
+  orders_check.orders_in_staging,
+  orders_check.orders_with_items,
+  orders_check.orders_in_staging - orders_check.orders_with_items AS orders_without_items,
+  orders_check.customers,
   memberships.countable_order_product_rows,
   pairs.pair_rows                                AS cooccurrence_pairs,
   pairs.weight_sum                               AS cooccurrence_weight_sum
 FROM source_items
 CROSS JOIN fact_items
+CROSS JOIN orders_check
 CROSS JOIN memberships
 CROSS JOIN pairs
 

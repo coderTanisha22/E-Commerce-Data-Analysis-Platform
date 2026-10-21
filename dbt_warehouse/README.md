@@ -4,8 +4,9 @@ Warehouse models for the Olist data engineering project. Two targets:
 
 - **`duckdb`** (default) — builds against the pipeline's processed Parquet with
   no cloud account. This is how the models are tested.
-- **`bigquery`** — the production target. Written, **not yet run**; see
-  `docs/implementation_status.md`.
+- **`bigquery`** — the production target. Run against the free sandbox project;
+  see `docs/implementation_status.md`. Sandbox tables expire after 60 days, so
+  rebuild with the BigQuery commands below when needed.
 
 ## Run it locally
 
@@ -23,7 +24,12 @@ Or from this directory:
 ../.venv/bin/dbt build --profiles-dir .
 ```
 
-Expected: `PASS=50 WARN=0 ERROR=0 SKIP=0 TOTAL=50` — 14 models and 36 tests.
+Expected: `PASS=71 WARN=1 ERROR=0 SKIP=0 TOTAL=72` — 15 models and 57 tests. The one
+warning is `warn_orders_without_items` reporting 775 orders that have no item
+rows, a known Olist quirk that is deliberately a warning and not a failure.
+
+Without `make` (for example on Windows), run the commands in the next block
+from this directory, using `..\.venv\Scripts\dbt` in place of `../.venv/bin/dbt`.
 
 The DuckDB file lands in `.duckdb/ecom_dw.duckdb` and is gitignored; it is a
 build artefact, rebuilt from scratch by `dbt build`.
@@ -32,12 +38,12 @@ build artefact, rebuilt from scratch by `dbt build`.
 
 | Path | What |
 |---|---|
-| `models/staging/` | Typed, renamed staging views over the contracted sources |
-| `models/intermediate/` | `int_order_products` — delivered order/product membership |
-| `models/marts/` | Dimensions, the order-item fact, sales summary, co-occurrence |
+| `models/staging/` | Typed, renamed staging models over the contracted sources (views on BigQuery, tables on DuckDB) |
+| `models/intermediate/` | `int_order_products` — distinct order/product membership for countable orders |
+| `models/marts/` | Dimensions, `fct_order_items`, `fct_orders`, `product_sales_summary`, `fct_product_cooccurrence` |
 | `macros/portability.sql` | Everything that differs between BigQuery and DuckDB |
-| `tests/` | 5 SQL assertions beyond the schema tests |
-| `analyses/` | `warehouse_reconciliation.sql` — input vs fact totals |
+| `tests/` | 11 SQL assertions beyond the schema tests (2 of them warnings) |
+| `analyses/` | `warehouse_reconciliation.sql` (input vs fact totals) and four `sample_*.sql` example queries |
 | `scripts/load_to_bigquery.py` | Loads processed Parquet to `olist_cleaned` with lineage JSON |
 | `scripts/local_validate.py` | Independent pandas check over the raw CSVs |
 
@@ -47,10 +53,14 @@ build artefact, rebuilt from scratch by `dbt build`.
   **Do not aggregate item rows into order-product-seller lines** — the pipeline
   already publishes `order_lines` for that, and an item key cannot be recovered
   once collapsed.
-- All order statuses remain in staging and in the fact. Co-occurrence and the
-  sales summary use `delivered` orders only. This differs from the pipeline's
-  own co-occurrence figure by 36 pairs; see `docs/contracts_alignment.md`.
-- `int_order_products` has one row per delivered (`order_id`, `product_id`).
+- All order statuses remain in staging and in the fact. The sales summary uses
+  `delivered` orders only; co-occurrence excludes only `canceled` and
+  `unavailable` orders, the same rule as the pipeline (`EXCLUDED_STATUSES`), so
+  both report 4,054 pairs. See `docs/contracts_alignment.md`.
+- `int_order_products` has one row per (`order_id`, `product_id`) for countable
+  orders.
+- `product_sales_summary` reports `total_units_sold` over the agreed window
+  (`window_start` to `window_end`, 577 days) and carries `number_of_days`.
 - Source keys and rows are preserved on load; `_run_date`, `_source_hash` and
   `_loaded_at` are additive.
 
