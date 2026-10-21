@@ -23,6 +23,8 @@ from datetime import date
 import numpy as np
 import pandas as pd
 
+from ecom.config import EXCLUDED_STATUSES
+
 logger = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------- defaults
@@ -37,9 +39,6 @@ WINDOW_START = date(2017, 2, 1)
 WINDOW_END = date(2018, 8, 31)
 """Nov 2016 has zero orders and 19 of the last 20 orders were cancelled, so both
 ends of the raw Olist range would distort any sales-per-day figure."""
-
-EXCLUDED_STATUSES: tuple[str, ...] = ("canceled", "unavailable")
-"""These orders never shipped, so counting them would overstate demand."""
 
 EVIDENCE_MIN_UNITS = 3
 """Below three units a sales rate is one or two events, not a trend. Such rows

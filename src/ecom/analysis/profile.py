@@ -15,10 +15,47 @@ from collections import Counter
 import networkx as nx
 import pandas as pd
 
-from ecom.config import MIN_COOCCURRENCE_COUNT, Settings, get_settings
+from ecom.config import EXCLUDED_STATUSES, MIN_COOCCURRENCE_COUNT, Settings, get_settings
 from ecom.storage import StorageBackend, get_storage
 
 logger = logging.getLogger(__name__)
+
+
+def select_countable_orders(
+    order_products: pd.DataFrame,
+    orders: pd.DataFrame,
+    excluded_statuses: tuple[str, ...] = EXCLUDED_STATUSES,
+) -> pd.DataFrame:
+    """Drop memberships belonging to orders that genuinely failed.
+
+    The cleaning layer flags order status rather than deleting rows, so the
+    decision about which orders count as evidence belongs here, to the
+    consumer. ``order_products`` carries no status of its own, so the flag is
+    joined back on.
+
+    The filter is ``canceled`` and ``unavailable`` only -- deliberately not
+    ``is_delivered``. Measured on this dataset, requiring delivery would drop
+    32 product pairs belonging to orders that were merely still in flight
+    (``shipped``, ``invoiced``, ``processing``) while removing only 4 belonging
+    to orders that actually failed. A customer who put two products in one
+    basket chose them together regardless of what logistics did afterwards.
+
+    Args:
+        order_products: Deduplicated (order_id, product_id) frame.
+        orders: Frame carrying ``order_id`` and ``order_status``.
+        excluded_statuses: Statuses treated as no evidence at all.
+
+    Returns:
+        ``order_products`` less the rows whose order failed.
+    """
+    status = orders.set_index("order_id")["order_status"]
+    failed = order_products["order_id"].map(status).isin(excluded_statuses)
+    dropped = int(failed.sum())
+    if dropped:
+        logger.info(
+            "excluded %d order-product rows in statuses %s", dropped, list(excluded_statuses)
+        )
+    return order_products.loc[~failed].reset_index(drop=True)
 
 
 def build_cooccurrence(order_products: pd.DataFrame) -> pd.DataFrame:
@@ -173,7 +210,12 @@ def build_profile(
     order_products = storage.get_parquet(storage.processed_key("order_products"))
     products = storage.get_parquet(storage.processed_key("products"))
 
-    pairs = build_cooccurrence(order_products)
+    # Co-occurrence is computed over orders that were really placed, which is
+    # not the same population as realised revenue below: sales keeps the
+    # stricter delivered-only filter because an in-flight order is not money
+    # yet, while a basket is a basket as soon as it is ordered.
+    countable = select_countable_orders(order_products, orders)
+    pairs = build_cooccurrence(countable)
     storage.put_parquet(storage.processed_key("product_cooccurrence"), pairs)
 
     return {
@@ -183,6 +225,6 @@ def build_profile(
             "distinct_categories": int(products["product_category_english"].nunique()),
         },
         "sales": profile_sales(orders, order_lines, settings),
-        "cooccurrence": profile_cooccurrence(order_products, pairs),
+        "cooccurrence": profile_cooccurrence(countable, pairs),
         "velocity": profile_velocity(orders, order_lines, settings),
     }

@@ -1,5 +1,10 @@
 -- Delivered order-item lines per product over the global observation window.
 --
+-- This model keeps the stricter delivered-only filter on purpose, unlike
+-- int_order_products. It reports realised sales, and an order still in flight
+-- is not money yet. Co-occurrence asks a different question -- did a customer
+-- choose these together -- which is answered as soon as the basket is placed.
+--
 -- The rate is line count per day across the window actually observed in the
 -- data, computed from min/max delivered purchase date rather than hardcoded,
 -- so the figure stays correct if the source is refreshed.

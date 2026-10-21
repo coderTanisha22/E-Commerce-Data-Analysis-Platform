@@ -22,6 +22,21 @@ DELIVERED_STATUS = "delivered"
 UNKNOWN_CATEGORY = "unknown"
 """Bucket for the 610 products whose product_category_name is NULL."""
 
+EXCLUDED_STATUSES: tuple[str, ...] = ("canceled", "unavailable")
+"""Order statuses that are genuine failures and so count as no evidence at all.
+
+Every other status -- including ``shipped``, ``invoiced`` and ``processing`` --
+describes an order that was really placed and is simply still in flight.
+
+This is the project's single rule for which orders count as evidence of
+behaviour, and it is deliberately *not* the same as ``is_delivered``. Requiring
+delivery was measured to discard 32 product pairs belonging to in-flight
+orders while removing only 4 belonging to failed ones: delivery is a logistics
+outcome and says nothing about whether a customer chose two products together.
+
+Realised *revenue* is the one place the stricter delivered-only filter is still
+correct, because an in-flight order is not money yet. See profile_sales."""
+
 # The observation window excludes both unusable ends of the Olist timeline:
 # Nov 2016 has 0 orders and Dec 2016 has 1, so the opening months would inflate
 # the denominator of every velocity figure; and of the 20 orders after

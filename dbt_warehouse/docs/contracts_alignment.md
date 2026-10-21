@@ -38,29 +38,29 @@ the warehouse boundary.
 
 ## Order status
 
-All statuses remain in staging and in `fct_order_items`. Only delivered orders
-feed `int_order_products`, `product_sales_summary` and
-`fct_product_cooccurrence`.
+All statuses remain in staging and in `fct_order_items`. `int_order_products`
+and `fct_product_cooccurrence` exclude `canceled` and `unavailable` only;
+`product_sales_summary` keeps the stricter delivered-only filter.
 
-### Known divergence from the pipeline's own analysis
+That split is deliberate and the two models say so. Co-occurrence asks whether
+a customer chose two products together, which is settled as soon as the basket
+is placed. Sales asks what revenue was realised, and an order still in flight
+is not money yet.
+
+### Reconciled with the pipeline
 
 | Measure | Warehouse | `src/ecom/analysis/profile.py` |
 |---|---|---|
-| Co-occurrence pairs | **4,022** | **4,058** |
-| Pair weight sum | 4,437 | 4,481 |
-| Order/product memberships | 100,196 (delivered) | 102,425 (all statuses) |
+| Co-occurrence pairs | 4,054 | 4,054 |
+| Pair weight sum | 4,476 | 4,476 |
+| Order/product memberships | 101,953 | 101,953 |
 
-The 36-pair gap is **not** a defect in the SQL. The warehouse counts
-co-occurrence over delivered orders only; the pipeline's analysis counts every
-order status. Those 36 pairs are evidenced solely by orders that were never
-delivered.
-
-The warehouse is the internally consistent one. The pipeline applies a
-delivered filter to its sales and velocity metrics but not to co-occurrence, so
-it currently mixes the two conventions. **This is an open decision for the
-team**, recorded in `docs/PROJECT_STATUS.md` §6, because aligning the pipeline
-to delivered-only would change figures already published in the Lab 4&5 report
-and the slide deck. It has deliberately not been changed unilaterally.
+These agreed only after the rule was fixed on both sides. The warehouse
+originally filtered to delivered orders and reported 4,022 while the analysis
+counted every status and reported 4,058. Measuring the 36-pair gap showed that
+**32 of them came from orders merely in flight** (21 `shipped`, 8 `invoiced`,
+5 `processing`) and only 4 from orders that genuinely failed, so neither
+original rule was right. Both now use `ecom.config.EXCLUDED_STATUSES`.
 
 ## Other decisions
 

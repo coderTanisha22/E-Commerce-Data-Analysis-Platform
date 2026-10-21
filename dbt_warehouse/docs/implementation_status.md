@@ -19,10 +19,15 @@ Done. PASS=49 WARN=0 ERROR=0 SKIP=0 TOTAL=49
 | Referential integrity to `dim_products`, `dim_sellers`, `dim_customers` | passes |
 | `int_order_products` membership unique | passes |
 
-Three independent implementations agree on the delivered co-occurrence pair
-count of **4,022**: the dbt models on DuckDB, `scripts/local_validate.py`
-(pandas over the raw CSVs), and a direct recomputation from the processed
-layer.
+The warehouse and the pipeline's own analysis now report the same
+co-occurrence figures — 4,054 pairs over 101,953 memberships — because both
+apply `ecom.config.EXCLUDED_STATUSES`. See `docs/contracts_alignment.md` for
+how that rule was arrived at.
+
+Three independent implementations agree on **4,054 pairs over 4,881 products**:
+the dbt models on DuckDB, `scripts/local_validate.py` (pandas over the original
+Olist CSVs, which shares no code with the models), and
+`src/ecom/analysis/profile.py` on the processed layer.
 
 ## What is NOT verified
 

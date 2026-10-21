@@ -1,5 +1,10 @@
 """Local sanity check of the warehouse transformation rules using pandas.
-This checks row grain, revenue preservation and delivered-order product pairs without cloud access.
+Checks row grain, revenue preservation and product pairs without cloud access.
+
+Independent of dbt on purpose: it reads the original Olist CSVs with pandas, so
+agreement with the warehouse is evidence rather than a tautology. The order
+status rule it applies must match ecom.config.EXCLUDED_STATUSES, or the two
+will disagree for a reason that has nothing to do with correctness.
 Run from dbt_warehouse: python scripts/local_validate.py --data-dir ../data
 """
 import argparse, json
@@ -27,9 +32,13 @@ def main():
     source_price = float(round(items['price_num'].sum(), 2))
     fact_price = float(round(fact['price_num'].sum(), 2))
     duplicate_keys = int(fact.duplicated(['order_id','order_item_id']).sum())
-    delivered = fact[fact['order_status'].str.lower().eq('delivered')][['order_id','product_id']].drop_duplicates()
+    # Same rule as ecom.config.EXCLUDED_STATUSES: only genuine failures are
+    # excluded. 'shipped', 'invoiced' and 'processing' are orders really placed
+    # and still in flight, and a basket is a basket as soon as it is ordered.
+    excluded = ('canceled', 'unavailable')
+    countable = fact[~fact['order_status'].str.lower().isin(excluded)][['order_id','product_id']].drop_duplicates()
     pair_counts = Counter()
-    for _, group in delivered.groupby('order_id', sort=False):
+    for _, group in countable.groupby('order_id', sort=False):
         products = sorted(group['product_id'].dropna().unique())
         pair_counts.update(combinations(products, 2))
     bad_pairs = sum(1 for x,y in pair_counts if x >= y)
@@ -40,7 +49,8 @@ def main():
       'price_sum_matches': bool(abs(source_price-fact_price) < 0.011),
       'unmatched_item_rows_dropped_by_order_join': int(source_rows-len(fact)),
       'duplicate_order_item_keys': duplicate_keys,
-      'delivered_orders_with_products': int(delivered['order_id'].nunique()),
+      'countable_orders_with_products': int(countable['order_id'].nunique()),
+      'excluded_statuses': list(excluded),
       'cooccurrence_pair_rows': len(pair_counts),
       'products_in_pairs': len(set(x for pair in pair_counts for x in pair)),
       'invalid_self_or_reverse_pairs': int(bad_pairs),

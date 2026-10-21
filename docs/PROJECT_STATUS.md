@@ -66,11 +66,15 @@ These were measured from the real data. Do not re-derive them; do not contradict
 them without re-measuring.
 
 ### Co-occurrence is extremely sparse
-- Only **3.28%** of orders contain 2+ distinct products (3,236 of 98,666)
-- **4,058** product pairs; **94.9%** were bought together exactly once
-- Graph reaches **4,885 of 32,951 products = 14.8% of the catalogue**
+- Only **3.29%** of orders contain 2+ distinct products (3,231 of 98,199)
+- **4,054** product pairs; **94.9%** were bought together exactly once
+- Graph reaches **4,881 of 32,951 products = 14.8% of the catalogue**
 - 1,652 disconnected components; largest has 398 products; 67.1% of nodes have
   exactly one neighbour
+
+These counts are over orders that were really placed — every status except
+`canceled` and `unavailable`. See §6 for why that is the rule and what it
+replaced.
 - **Conclusion: Olist cannot support product-level recommendation at catalogue
   scale.** Use a two-tier design — product tier for precision, category tier
   (98.2% coverage) as the fallback.
@@ -189,7 +193,42 @@ reports/           generated reports, figures, slide charts
 | Lab 2 has no in-text citations | IEEE list drafted; 9 anchor positions mapped. Two references still need author names. |
 | Kafka claim in Lab 2 §I | Unsupported by the cited source. Drop it or source it. |
 | Canva deck wording | Slide 6 needs: "cancelled **and unavailable**", `ceil(...)` + min 1 on the reorder point, and "(min 30)" on the rate. |
-| **Co-occurrence counts non-delivered orders** | **Open decision, needs a call.** The warehouse counts co-occurrence over delivered orders only and reports **4,022 pairs**; `src/ecom/analysis/profile.py` counts every order status and reports **4,058**. The 36-pair gap is evidenced solely by orders that were never delivered. The warehouse is the internally consistent one — the pipeline already filters its sales and velocity metrics to delivered but not its co-occurrence, so it mixes conventions. Aligning the pipeline would change figures already published in `reports/Lab45_9.pdf` and the Canva deck (4,058 pairs, 3.28% multi-product, the graph shape stats), which is why it has **not** been changed unilaterally. |
+| ~~Co-occurrence status rule~~ | **Resolved 22 Oct 2026.** See "One evidence rule" below. |
+
+---
+
+### One evidence rule, measured rather than argued
+
+The project had **three** different answers to "which orders count":
+co-occurrence used every status, sales and velocity used `is_delivered`, and
+the synthetic inventory excluded `canceled` and `unavailable`. The warehouse
+inherited the delivered-only reading and so disagreed with the analysis by 36
+pairs.
+
+Measuring the 36 settled it. Only **4** came from orders that actually failed;
+**32** came from orders still in flight — 21 `shipped`, 8 `invoiced`, 5
+`processing`. Requiring delivery was discarding real baskets, because delivery
+is a logistics outcome and says nothing about whether a customer chose two
+products together.
+
+| Rule | Pairs | Weight | Verdict |
+|---|---|---|---|
+| all statuses | 4,058 | 4,481 | keeps 4 pairs from failed orders |
+| delivered only | 4,022 | 4,437 | drops 32 pairs from in-flight orders |
+| **exclude `canceled` + `unavailable`** | **4,054** | **4,476** | **adopted** |
+
+`EXCLUDED_STATUSES` moved from `synthetic/inventory.py` to `config.py` and is
+now the single rule, applied by `analysis.profile.select_countable_orders` and
+by the warehouse's `int_order_products`. Both sides report 4,054.
+
+**Realised revenue deliberately keeps the stricter delivered-only filter** —
+an in-flight order is not money yet. That is a different question from whether
+a basket happened, and the two models say so in their docstrings.
+
+Effect on previously published figures: pairs 4,058 → 4,054, multi-product
+share 3.28% → 3.29%, graph nodes 4,885 → 4,881. Component count (1,652) and
+largest component (398) are unchanged. `reports/Lab45_9.pdf` and the Canva deck
+still quote the old numbers and need a pass.
 
 ---
 

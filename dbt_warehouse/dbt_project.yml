@@ -22,9 +22,17 @@ vars:
 
 models:
   ecom_dw:
+    # On BigQuery staging and intermediate are views, the usual dbt layering:
+    # they cost nothing to store and always reflect the source.
+    #
+    # On DuckDB they materialise as tables instead. The sources are read with
+    # read_parquet() on a path relative to this directory, so a view would only
+    # resolve while the querying process happened to share that working
+    # directory. Materialising makes the .duckdb file self-contained and
+    # queryable from anywhere, which is what makes it useful for ad-hoc work.
     staging:
-      +materialized: view
+      +materialized: "{{ 'table' if target.type == 'duckdb' else 'view' }}"
     intermediate:
-      +materialized: view
+      +materialized: "{{ 'table' if target.type == 'duckdb' else 'view' }}"
     marts:
       +materialized: table
