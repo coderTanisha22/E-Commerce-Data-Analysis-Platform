@@ -39,3 +39,45 @@ class ProductGraphService:
                 prod_a, prod_b = prod_b, prod_a
 
             self.graph.add_edge(prod_a, prod_b, weight=count)
+
+    def _get_category(self, product_id: str) -> str | None:
+        """Lookup English category name from catalogue metadata if present."""
+        if not self._products.empty and product_id in self._products.index:
+            val = self._products.loc[product_id, "product_category_english"]
+            if pd.notna(val):
+                return str(val)
+        return None
+
+    def get_recommendations(
+        self,
+        product_id: str,
+        limit: int = 5,
+    ) -> list[dict[str, object]]:
+        """Return neighbouring products ranked by co-occurrence weight.
+
+        Ties are broken deterministically by product_id ascending, eliminating
+        non-deterministic ranking when weights are equal.
+
+        Args:
+            product_id: Target product identifier.
+            limit: Maximum number of recommendations to return.
+
+        Returns:
+            List of dicts with keys 'product_id', 'weight', and 'category'.
+        """
+        if product_id not in self.graph:
+            return []
+
+        candidates: list[dict[str, object]] = []
+        for neighbor in self.graph.neighbors(product_id):
+            if neighbor == product_id:
+                continue
+            weight = int(self.graph[product_id][neighbor]["weight"])
+            category = self._get_category(neighbor)
+            candidates.append(
+                {"product_id": neighbor, "weight": weight, "category": category}
+            )
+
+        # Deterministic sorting: weight descending, then product_id ascending
+        candidates.sort(key=lambda item: (-int(item["weight"]), str(item["product_id"])))
+        return candidates[:limit]
