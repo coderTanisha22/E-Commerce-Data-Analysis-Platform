@@ -7,6 +7,7 @@ Validates:
 - Deterministic ranked recommendations with tie-breaking
 - No self-recommendations
 - Unknown products return empty recommendations safely
+- Relationship-aware search with direct-before-expanded ranking and deduplication
 """
 
 from __future__ import annotations
@@ -23,12 +24,13 @@ def sample_products() -> pd.DataFrame:
     """Fixture providing toy product metadata."""
     return pd.DataFrame(
         {
-            "product_id": ["p_apple", "p_banana", "p_cherry", "p_date"],
+            "product_id": ["p_apple", "p_banana", "p_cherry", "p_date", "p_elderberry"],
             "product_category_english": [
                 "fruit",
                 "fruit",
                 "fruit",
                 "dried_fruit",
+                "berries",
             ],
         }
     )
@@ -153,53 +155,40 @@ def test_unknown_product_returns_empty_recommendations(
     assert recs == []
 
 
-
-def test_recommendations_ranking_and_deterministic_tie_breaking(
+def test_search_direct_before_expanded_and_deduplicated(
     sample_products: pd.DataFrame,
 ) -> None:
-    """Recommendations sort by weight DESC, then product_id ASC for ties."""
+    """Direct matches appear before expanded neighbors; duplicates are eliminated."""
+    # p_apple, p_banana, p_cherry have category 'fruit' (direct matches).
+    # p_elderberry is 'berries' (not fruit), but connected to p_apple in graph.
     pairs_df = pd.DataFrame(
         {
-            "product_a": ["target", "target", "target"],
-            "product_b": ["p_date", "p_banana", "p_cherry"],
-            "order_count": [2, 5, 2],
+            "product_a": ["p_apple", "p_banana"],
+            "product_b": ["p_elderberry", "p_cherry"],
+            "order_count": [4, 1],
         }
     )
     service = ProductGraphService(pairs=pairs_df, products=sample_products)
-    recs = service.get_recommendations("target", limit=5)
+    results = service.search_products(query="fruit", expand_graph=True, limit=10)
 
-    assert len(recs) == 3
-    # p_banana has highest weight (5)
-    assert recs[0]["product_id"] == "p_banana"
-    assert recs[0]["weight"] == 5
+    # Direct matches must be first
+    assert results[0]["match_type"] == "direct"
+    assert results[1]["match_type"] == "direct"
+    assert results[2]["match_type"] == "direct"
 
-    # p_cherry and p_date are tied at weight 2 -> p_cherry wins alphabetical tie-break
-    assert recs[1]["product_id"] == "p_cherry"
-    assert recs[1]["weight"] == 2
-    assert recs[2]["product_id"] == "p_date"
-    assert recs[2]["weight"] == 2
+    # Expanded match comes after direct matches
+    expanded = [r for r in results if r["match_type"] == "expanded"]
+    assert len(expanded) == 1
+    assert expanded[0]["product_id"] == "p_elderberry"
+    assert expanded[0]["weight"] == 4
 
-
-def test_no_self_recommendation(sample_products: pd.DataFrame) -> None:
-    """The requested product must never be recommended to itself."""
-    pairs_df = pd.DataFrame(
-        {
-            "product_a": ["p_apple", "p_apple"],
-            "product_b": ["p_banana", "p_cherry"],
-            "order_count": [3, 2],
-        }
-    )
-    service = ProductGraphService(pairs=pairs_df, products=sample_products)
-    recs = service.get_recommendations("p_apple", limit=5)
-
-    rec_ids = [r["product_id"] for r in recs]
-    assert "p_apple" not in rec_ids
+    # Ensure no duplicates
+    result_ids = [r["product_id"] for r in results]
+    assert len(result_ids) == len(set(result_ids))
 
 
-def test_unknown_product_returns_empty_recommendations(
-    sample_products: pd.DataFrame,
-) -> None:
-    """Unknown product ID returns an empty list without crashing."""
+def test_search_respects_limit(sample_products: pd.DataFrame) -> None:
+    """Search truncates results when limit is reached."""
     pairs_df = pd.DataFrame(
         {
             "product_a": ["p_apple"],
@@ -208,5 +197,21 @@ def test_unknown_product_returns_empty_recommendations(
         }
     )
     service = ProductGraphService(pairs=pairs_df, products=sample_products)
-    recs = service.get_recommendations("non_existent_id")
-    assert recs == []
+    results = service.search_products(query="fruit", limit=2)
+    assert len(results) == 2
+
+
+def test_empty_search_query_returns_empty_list(
+    sample_products: pd.DataFrame,
+) -> None:
+    """Empty or whitespace search query returns empty list."""
+    pairs_df = pd.DataFrame(
+        {
+            "product_a": ["p_apple"],
+            "product_b": ["p_banana"],
+            "order_count": [1],
+        }
+    )
+    service = ProductGraphService(pairs=pairs_df, products=sample_products)
+    results = service.search_products(query="   ")
+    assert results == []
