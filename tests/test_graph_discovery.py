@@ -8,6 +8,7 @@ Validates:
 - No self-recommendations
 - Unknown products return empty recommendations safely
 - Relationship-aware search with direct-before-expanded ranking and deduplication
+- Pydantic schema validation for API handoff
 """
 
 from __future__ import annotations
@@ -17,6 +18,7 @@ import pytest
 
 from ecom.analysis.profile import build_cooccurrence
 from ecom.discovery.graph import ProductGraphService
+from ecom.discovery.schemas import RecommendationResponse, SearchResponse
 
 
 @pytest.fixture
@@ -109,18 +111,19 @@ def test_recommendations_ranking_and_deterministic_tie_breaking(
         }
     )
     service = ProductGraphService(pairs=pairs_df, products=sample_products)
-    recs = service.get_recommendations("target", limit=5)
+    resp = service.get_recommendations("target", limit=5)
 
-    assert len(recs) == 3
+    assert isinstance(resp, RecommendationResponse)
+    assert resp.total_found == 3
     # p_banana has highest weight (5)
-    assert recs[0]["product_id"] == "p_banana"
-    assert recs[0]["weight"] == 5
+    assert resp.recommendations[0].product_id == "p_banana"
+    assert resp.recommendations[0].weight == 5
 
     # p_cherry and p_date are tied at weight 2 -> p_cherry wins alphabetical tie-break
-    assert recs[1]["product_id"] == "p_cherry"
-    assert recs[1]["weight"] == 2
-    assert recs[2]["product_id"] == "p_date"
-    assert recs[2]["weight"] == 2
+    assert resp.recommendations[1].product_id == "p_cherry"
+    assert resp.recommendations[1].weight == 2
+    assert resp.recommendations[2].product_id == "p_date"
+    assert resp.recommendations[2].weight == 2
 
 
 def test_no_self_recommendation(sample_products: pd.DataFrame) -> None:
@@ -133,9 +136,9 @@ def test_no_self_recommendation(sample_products: pd.DataFrame) -> None:
         }
     )
     service = ProductGraphService(pairs=pairs_df, products=sample_products)
-    recs = service.get_recommendations("p_apple", limit=5)
+    resp = service.get_recommendations("p_apple", limit=5)
 
-    rec_ids = [r["product_id"] for r in recs]
+    rec_ids = [r.product_id for r in resp.recommendations]
     assert "p_apple" not in rec_ids
 
 
@@ -151,8 +154,9 @@ def test_unknown_product_returns_empty_recommendations(
         }
     )
     service = ProductGraphService(pairs=pairs_df, products=sample_products)
-    recs = service.get_recommendations("non_existent_id")
-    assert recs == []
+    resp = service.get_recommendations("non_existent_id")
+    assert resp.total_found == 0
+    assert resp.recommendations == []
 
 
 def test_search_direct_before_expanded_and_deduplicated(
@@ -169,21 +173,22 @@ def test_search_direct_before_expanded_and_deduplicated(
         }
     )
     service = ProductGraphService(pairs=pairs_df, products=sample_products)
-    results = service.search_products(query="fruit", expand_graph=True, limit=10)
+    resp = service.search_products(query="fruit", expand_graph=True, limit=10)
 
+    assert isinstance(resp, SearchResponse)
     # Direct matches must be first
-    assert results[0]["match_type"] == "direct"
-    assert results[1]["match_type"] == "direct"
-    assert results[2]["match_type"] == "direct"
+    assert resp.results[0].match_type == "direct"
+    assert resp.results[1].match_type == "direct"
+    assert resp.results[2].match_type == "direct"
 
     # Expanded match comes after direct matches
-    expanded = [r for r in results if r["match_type"] == "expanded"]
+    expanded = [r for r in resp.results if r.match_type == "expanded"]
     assert len(expanded) == 1
-    assert expanded[0]["product_id"] == "p_elderberry"
-    assert expanded[0]["weight"] == 4
+    assert expanded[0].product_id == "p_elderberry"
+    assert expanded[0].weight == 4
 
     # Ensure no duplicates
-    result_ids = [r["product_id"] for r in results]
+    result_ids = [r.product_id for r in resp.results]
     assert len(result_ids) == len(set(result_ids))
 
 
@@ -197,8 +202,8 @@ def test_search_respects_limit(sample_products: pd.DataFrame) -> None:
         }
     )
     service = ProductGraphService(pairs=pairs_df, products=sample_products)
-    results = service.search_products(query="fruit", limit=2)
-    assert len(results) == 2
+    resp = service.search_products(query="fruit", limit=2)
+    assert len(resp.results) == 2
 
 
 def test_empty_search_query_returns_empty_list(
@@ -213,5 +218,25 @@ def test_empty_search_query_returns_empty_list(
         }
     )
     service = ProductGraphService(pairs=pairs_df, products=sample_products)
-    results = service.search_products(query="   ")
-    assert results == []
+    resp = service.search_products(query="   ")
+    assert resp.total_found == 0
+    assert resp.results == []
+
+
+def test_schema_serialization(sample_products: pd.DataFrame) -> None:
+    """Verify responses serialize to dictionary matching expected API JSON."""
+    pairs_df = pd.DataFrame(
+        {
+            "product_a": ["p_apple"],
+            "product_b": ["p_banana"],
+            "order_count": [3],
+        }
+    )
+    service = ProductGraphService(pairs=pairs_df, products=sample_products)
+    rec_resp = service.get_recommendations("p_apple", limit=1)
+    rec_dict = rec_resp.model_dump()
+
+    assert "product_id" in rec_dict
+    assert "recommendations" in rec_dict
+    assert rec_dict["recommendations"][0]["weight"] == 3
+    assert rec_dict["recommendations"][0]["category"] == "fruit"
