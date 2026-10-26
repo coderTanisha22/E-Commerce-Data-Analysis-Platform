@@ -9,9 +9,12 @@ Validates:
 - Unknown products return empty recommendations safely
 - Relationship-aware search with direct-before-expanded ranking and deduplication
 - Pydantic schema validation for API handoff
+- Warehouse reconciliation against real processed data (4,054 pairs, 4,881 nodes, 4,476 weight sum)
 """
 
 from __future__ import annotations
+
+from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -19,6 +22,7 @@ import pytest
 from ecom.analysis.profile import build_cooccurrence
 from ecom.discovery.graph import ProductGraphService
 from ecom.discovery.schemas import RecommendationResponse, SearchResponse
+from ecom.storage import get_storage
 
 
 @pytest.fixture
@@ -240,3 +244,23 @@ def test_schema_serialization(sample_products: pd.DataFrame) -> None:
     assert "recommendations" in rec_dict
     assert rec_dict["recommendations"][0]["weight"] == 3
     assert rec_dict["recommendations"][0]["category"] == "fruit"
+
+
+def test_warehouse_reconciliation_against_processed_parquet() -> None:
+    """Assert graph edge count and weights reconcile to warehouse totals.
+
+    The project-wide evidence rule excludes canceled and unavailable orders,
+    yielding exactly 4,054 pairs, 4,881 unique products, and 4,476 total weight sum.
+    """
+    parquet_path = Path("data/processed/product_cooccurrence.parquet")
+    if not parquet_path.exists():
+        pytest.skip("Processed co-occurrence parquet not yet generated on this machine.")
+
+    storage = get_storage()
+    pairs = storage.get_parquet(storage.processed_key("product_cooccurrence"))
+    service = ProductGraphService(pairs=pairs)
+
+    assert service.graph.number_of_edges() == 4054
+    assert service.graph.number_of_nodes() == 4881
+    total_weight = sum(d["weight"] for _, _, d in service.graph.edges(data=True))
+    assert total_weight == 4476
