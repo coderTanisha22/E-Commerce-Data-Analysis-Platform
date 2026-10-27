@@ -48,8 +48,32 @@ is a config change, not a rewrite.
 | olist_sellers_dataset | seller_id | — |
 | product_category_name_translation | product_category_name | — |
 
+## Contract 3 — Warehouse → Graph & Discovery (owner: C)
+
+| Field | Value |
+|---|---|
+| Upstream Source | `dbt_warehouse.marts.fct_product_cooccurrence` or `data/processed/product_cooccurrence.parquet` |
+| Format | Parquet / relational table |
+| Grain | Unique unordered product pair: (`product_a`, `product_b`) |
+| Guarantees | Canonical order `product_a < product_b`; no self-pairs (`product_a != product_b`); `order_count >= 1` |
+| Order filter | Excludes `canceled` and `unavailable` orders (`ecom.config.EXCLUDED_STATUSES`). In-flight orders (`shipped`, `invoiced`, `processing`) are preserved. |
+| Reconciled metrics | Exactly **4,054 pairs**, **4,881 unique products**, total weight sum **4,476**. |
+
+## Contract 4 — Warehouse → Inventory (owner: D)
+
+*(To be filled by Member D)*
+
+## Contract 5 — Discovery API → UI (owner: C, consumer: D)
+
+| Endpoint | Method | Params / Payload | Response Schema | Description |
+|---|---|---|---|---|
+| `/products/{product_id}/recommendations` | GET | `limit: int = 5` | `RecommendationResponse` | Ranked neighbors by weight DESC, tie-broken by `product_id ASC`. |
+| `/products/search` | GET | `q: str, expand: bool = true, limit: int = 10` | `SearchResponse` | Direct category matches first, followed by 1-hop graph neighbors. |
+
 ## Open items for the team
 
 - [ ] Confirm MinIO migration timeline (currently deferred, local filesystem only)
-- [ ] B to review this file and confirm schema/grain before building staging models
-- [ ] B, C, D to add their own contract sections below as those stages are built
+
+- [x] B to review this file and confirm schema/grain before building staging models (Completed)
+- [x] C added graph and discovery contract (Completed)
+- [ ] D to add inventory and dashboard contract sections below
