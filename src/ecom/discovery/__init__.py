@@ -21,15 +21,15 @@ from ecom.discovery.schemas import (
 from ecom.discovery.visualize import render_interactive_graph_html
 
 __all__ = [
-    "ProductGraphService",
-    "load_discovery_service",
-    "synthesize_product_name",
-    "render_interactive_graph_html",
     "GraphDataResponse",
-    "GraphNode",
     "GraphLink",
+    "GraphNode",
+    "ProductGraphService",
     "RecommendationItem",
     "RecommendationResponse",
     "SearchItem",
     "SearchResponse",
+    "load_discovery_service",
+    "render_interactive_graph_html",
+    "synthesize_product_name",
 ]

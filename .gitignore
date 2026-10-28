@@ -9,6 +9,7 @@ __pycache__/
 data/raw/
 data/processed/
 reports/figures/*.png
+reports/figures/*.html
 reports/*.json
 reports/*.csv
 

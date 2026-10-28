@@ -23,68 +23,136 @@ _D3_HTML_TEMPLATE = """<!DOCTYPE html>
   <script src="https://d3js.org/d3.v7.min.js"></script>
   <style>
     body {{
-      margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #0f172a; color: #f8fafc; overflow: hidden;
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f172a;
+      color: #f8fafc;
+      overflow: hidden;
     }}
     #header {{
-      position: absolute; top: 16px; left: 20px; z-index: 10;
-      background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(8px);
-      padding: 12px 18px; border-radius: 8px; border: 1px solid #334155;
+      position: absolute;
+      top: 16px;
+      left: 20px;
+      z-index: 10;
+      background: rgba(15, 23, 42, 0.9);
+      backdrop-filter: blur(8px);
+      padding: 12px 18px;
+      border-radius: 8px;
+      border: 1px solid #334155;
       max-width: 400px;
     }}
     h1 {{ margin: 0 0 4px 0; font-size: 16px; font-weight: 600; color: #f1f5f9; }}
     .subtitle {{ font-size: 12px; color: #94a3b8; margin: 0 0 8px 0; }}
     .search-box {{
-      width: 100%; box-sizing: border-box; padding: 7px 10px; border-radius: 6px;
-      border: 1px solid #475569; background: #1e293b; color: #f8fafc; font-size: 12px;
+      width: 100%;
+      box-sizing: border-box;
+      padding: 7px 10px;
+      border-radius: 6px;
+      border: 1px solid #475569;
+      background: #1e293b;
+      color: #f8fafc;
+      font-size: 12px;
     }}
     #drawer {{
-      position: absolute; top: 16px; right: 20px; z-index: 10;
-      width: 330px; max-height: calc(100vh - 40px); overflow-y: auto;
-      background: rgba(15, 23, 42, 0.94); backdrop-filter: blur(10px);
-      padding: 16px; border-radius: 10px; border: 1px solid #334155;
+      position: absolute;
+      top: 16px;
+      right: 20px;
+      z-index: 10;
+      width: 330px;
+      max-height: calc(100vh - 40px);
+      overflow-y: auto;
+      background: rgba(15, 23, 42, 0.94);
+      backdrop-filter: blur(10px);
+      padding: 16px;
+      border-radius: 10px;
+      border: 1px solid #334155;
       box-shadow: 0 8px 24px rgba(0,0,0,0.4);
     }}
     .drawer-title {{ font-size: 14px; font-weight: 600; margin: 0 0 10px 0; color: #38bdf8; }}
     .badge {{
-      display: inline-block; padding: 2px 8px; border-radius: 12px;
-      font-size: 11px; font-weight: 600; background: #334155; color: #94a3b8;
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      background: #334155;
+      color: #94a3b8;
     }}
     .rec-card {{
-      background: #1e293b; border: 1px solid #334155; border-radius: 6px;
-      padding: 9px 10px; margin-bottom: 7px; font-size: 12px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 9px 10px;
+      margin-bottom: 7px;
+      font-size: 12px;
     }}
     .weight-tag {{
-      float: right; background: #0284c7; color: white; padding: 1px 6px;
-      border-radius: 4px; font-size: 11px; font-weight: 600;
+      float: right;
+      background: #0284c7;
+      color: white;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
     }}
     #tooltip {{
-      position: absolute; display: none; background: #1e293b;
-      border: 1px solid #475569; padding: 8px 12px; border-radius: 6px;
-      font-size: 12px; color: #f8fafc; pointer-events: none; z-index: 30;
+      position: absolute;
+      display: none;
+      background: #1e293b;
+      border: 1px solid #475569;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #f8fafc;
+      pointer-events: none;
+      z-index: 30;
       box-shadow: 0 4px 12px rgba(0,0,0,0.4);
     }}
     svg {{ width: 100vw; height: 100vh; cursor: grab; }}
     svg:active {{ cursor: grabbing; }}
-    .link {{ stroke: #475569; stroke-opacity: 0.6; transition: stroke 0.2s, stroke-opacity 0.2s; }}
+    .link {{
+      stroke: #475569;
+      stroke-opacity: 0.6;
+      transition: stroke 0.2s, stroke-opacity 0.2s;
+    }}
     .link.highlight {{ stroke: #38bdf8; stroke-opacity: 1; }}
     .edge-label {{
-      font-size: 10px; fill: #94a3b8; font-weight: 600; pointer-events: none;
-      paint-order: stroke; stroke: #0f172a; stroke-width: 2px;
+      font-size: 10px;
+      fill: #94a3b8;
+      font-weight: 600;
+      pointer-events: none;
+      paint-order: stroke;
+      stroke: #0f172a;
+      stroke-width: 2px;
     }}
     .node-group {{ cursor: pointer; transition: opacity 0.2s; }}
-    .node-circle {{ stroke: #0f172a; stroke-width: 1.5px; transition: stroke 0.2s, stroke-width 0.2s; }}
+    .node-circle {{
+      stroke: #0f172a;
+      stroke-width: 1.5px;
+      transition: stroke 0.2s, stroke-width 0.2s;
+    }}
     .node-group:hover .node-circle {{ stroke: #38bdf8; stroke-width: 3px; }}
     .node-group.selected .node-circle {{ stroke: #f59e0b; stroke-width: 4px; }}
     .node-label {{
-      font-size: 10px; fill: #e2e8f0; pointer-events: none;
-      paint-order: stroke; stroke: #0f172a; stroke-width: 2.5px;
+      font-size: 10px;
+      fill: #e2e8f0;
+      pointer-events: none;
+      paint-order: stroke;
+      stroke: #0f172a;
+      stroke-width: 2.5px;
     }}
     .dimmed {{ opacity: 0.12 !important; }}
     .reset-btn {{
-      margin-top: 10px; width: 100%; padding: 7px; background: #334155;
-      color: #f8fafc; border: none; border-radius: 6px; font-size: 11px;
-      font-weight: 600; cursor: pointer;
+      margin-top: 10px;
+      width: 100%;
+      padding: 7px;
+      background: #334155;
+      color: #f8fafc;
+      border: none;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
     }}
     .reset-btn:hover {{ background: #475569; }}
   </style>
@@ -93,7 +161,8 @@ _D3_HTML_TEMPLATE = """<!DOCTYPE html>
   <div id="header">
     <h1>{title}</h1>
     <p class="subtitle" id="stats">Loading co-occurrence data...</p>
-    <input type="text" id="search" class="search-box" placeholder="Search product name, category, or ID...">
+    <input type="text" id="search" class="search-box"
+      placeholder="Search product name, category, or ID...">
   </div>
 
   <div id="drawer">
@@ -110,15 +179,16 @@ _D3_HTML_TEMPLATE = """<!DOCTYPE html>
 
   <script>
     const data = {data_json};
-    document.getElementById("stats").innerText = 
-      `${{data.total_nodes}} products, ${{data.total_links}} cross-sell pairs (showing bundle weights)`;
+    document.getElementById("stats").innerText =
+      `${{data.total_nodes}} products, ${{data.total_links}} cross-sell pairs (showing weights)`;
 
     const svg = d3.select("#canvas");
     const width = window.innerWidth;
     const height = window.innerHeight;
     const g = svg.append("g");
 
-    const zoom = d3.zoom().scaleExtent([0.1, 4]).on("zoom", (e) => g.attr("transform", e.transform));
+    const zoom = d3.zoom().scaleExtent([0.1, 4])
+      .on("zoom", (e) => g.attr("transform", e.transform));
     svg.call(zoom);
 
     svg.on("click", (event) => {{
@@ -129,7 +199,8 @@ _D3_HTML_TEMPLATE = """<!DOCTYPE html>
     const tooltip = d3.select("#tooltip");
 
     const simulation = d3.forceSimulation(data.nodes)
-      .force("link", d3.forceLink(data.links).id(d => d.id).distance(d => Math.max(50, 130 - d.weight * 10)))
+      .force("link", d3.forceLink(data.links).id(d => d.id)
+        .distance(d => Math.max(50, 130 - d.weight * 10)))
       .force("charge", d3.forceManyBody().strength(-200))
       .force("center", d3.forceCenter(width / 2 - 80, height / 2))
       .force("collide", d3.forceCollide().radius(26));
@@ -149,7 +220,8 @@ _D3_HTML_TEMPLATE = """<!DOCTYPE html>
                 `Order Count: <strong>${{d.weight}} orders</strong> together`);
       }})
       .on("mousemove", (event) => {{
-        tooltip.style("left", (event.pageX + 14) + "px").style("top", (event.pageY - 28) + "px");
+        tooltip.style("left", (event.pageX + 14) + "px")
+          .style("top", (event.pageY - 28) + "px");
       }})
       .on("mouseout", () => tooltip.style("display", "none"));
 
@@ -158,16 +230,22 @@ _D3_HTML_TEMPLATE = """<!DOCTYPE html>
       .join("text")
       .attr("class", "edge-label")
       .attr("text-anchor", "middle")
-      .text(d => `${{d.weight}}×`);
+      .text(d => `${{d.weight}}x`);
 
     const node = nodeGroup.selectAll("g")
       .data(data.nodes)
       .join("g")
       .attr("class", "node-group")
       .call(d3.drag()
-        .on("start", (event, d) => {{ if (!event.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; }})
+        .on("start", (event, d) => {{
+          if (!event.active) simulation.alphaTarget(0.3).restart();
+          d.fx = d.x; d.fy = d.y;
+        }})
         .on("drag", (event, d) => {{ d.fx = event.x; d.fy = event.y; }})
-        .on("end", (event, d) => {{ if (!event.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }}))
+        .on("end", (event, d) => {{
+          if (!event.active) simulation.alphaTarget(0);
+          d.fx = null; d.fy = null;
+        }}))
       .on("click", (event, d) => {{
         event.stopPropagation();
         selectNode(d);
@@ -179,7 +257,8 @@ _D3_HTML_TEMPLATE = """<!DOCTYPE html>
                 `Connected to: <strong>${{d.degree}} cross-sell items</strong>`);
       }})
       .on("mousemove", (event) => {{
-        tooltip.style("left", (event.pageX + 14) + "px").style("top", (event.pageY - 28) + "px");
+        tooltip.style("left", (event.pageX + 14) + "px")
+          .style("top", (event.pageY - 28) + "px");
       }})
       .on("mouseout", () => tooltip.style("display", "none"));
 
@@ -253,8 +332,11 @@ _D3_HTML_TEMPLATE = """<!DOCTYPE html>
       let html = `
         <div style="margin-bottom: 12px;">
           <div style="font-size: 13px; font-weight: 600; color: #f8fafc;">${{nodeData.name}}</div>
-          <div style="font-family: monospace; font-size: 10px; color: #94a3b8; margin: 2px 0 6px 0;">ID: ${{nodeData.id}}</div>
-          <span class="badge" style="background: ${{color(nodeData.category || 'unknown')}}; color: white;">
+          <div style="font-family: monospace; font-size: 10px; color: #94a3b8; margin: 2px 0;">
+            ID: ${{nodeData.id}}
+          </div>
+          <span class="badge"
+            style="background: ${{color(nodeData.category || 'unknown')}}; color: white;">
             ${{nodeData.category || 'unknown'}}
           </span>
           <div style="font-size: 12px; color: #94a3b8; margin-top: 6px;">
@@ -267,13 +349,20 @@ _D3_HTML_TEMPLATE = """<!DOCTYPE html>
       `;
 
       sortedEdges.forEach(e => {{
-        const targetId = (e.source.id || e.source) === nodeData.id ? (e.target.id || e.target) : (e.source.id || e.source);
-        const targetNode = data.nodes.find(n => n.id === targetId) || {{ name: targetId, category: 'unknown' }};
+        const s = e.source.id || e.source;
+        const t = e.target.id || e.target;
+        const targetId = s === nodeData.id ? t : s;
+        const targetNode = data.nodes.find(n => n.id === targetId) ||
+          {{ name: targetId, category: 'unknown' }};
         html += `
           <div class="rec-card">
             <span class="weight-tag">${{e.weight}} orders</span>
-            <div style="font-weight: 600; color: #f1f5f9; margin-bottom: 2px;">${{targetNode.name}}</div>
-            <div style="font-size: 11px; color: #94a3b8;">${{targetNode.category || 'unknown'}}</div>
+            <div style="font-weight: 600; color: #f1f5f9; margin-bottom: 2px;">
+              ${{targetNode.name}}
+            </div>
+            <div style="font-size: 11px; color: #94a3b8;">
+              ${{targetNode.category || 'unknown'}}
+            </div>
           </div>
         `;
       }});
@@ -288,8 +377,8 @@ _D3_HTML_TEMPLATE = """<!DOCTYPE html>
         resetSelection();
         return;
       }}
-      const match = data.nodes.find(n => 
-        n.id.toLowerCase().includes(query) || 
+      const match = data.nodes.find(n =>
+        n.id.toLowerCase().includes(query) ||
         (n.category && n.category.toLowerCase().includes(query)) ||
         (n.name && n.name.toLowerCase().includes(query))
       );

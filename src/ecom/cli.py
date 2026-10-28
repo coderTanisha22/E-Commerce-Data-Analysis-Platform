@@ -162,7 +162,8 @@ def _cmd_visualize_graph(args: argparse.Namespace) -> int:
     out_path = out_dir / "cooccurrence_graph.html"
     rendered = render_interactive_graph_html(data, out_path)
     print(
-        f"wrote interactive graph ({data.total_nodes} nodes, {data.total_links} links) to {rendered}"
+        f"wrote interactive graph ({data.total_nodes} nodes, {data.total_links} links) "
+        f"to {rendered}"
     )
     return 0
 
