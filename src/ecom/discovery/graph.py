@@ -1,7 +1,8 @@
 """Product co-occurrence graph and discovery service.
 
 Builds an undirected NetworkX graph from validated product co-occurrence pairs
-and exposes deterministic recommendations and relationship-aware search.
+and exposes deterministic recommendations, relationship-aware search, and
+node-link serialization for dashboard visualization.
 No machine learning or vector search: recommendations are pure graph lookups
 ranked by co-occurrence order counts.
 """
@@ -14,7 +15,11 @@ import networkx as nx
 import pandas as pd
 
 from ecom.config import Settings, get_settings
+from ecom.discovery.names import synthesize_product_name
 from ecom.discovery.schemas import (
+    GraphDataResponse,
+    GraphLink,
+    GraphNode,
     RecommendationItem,
     RecommendationResponse,
     SearchItem,
@@ -105,8 +110,14 @@ class ProductGraphService:
                 continue
             weight = int(self.graph[product_id][neighbor]["weight"])
             category = self._get_category(neighbor)
+            name = synthesize_product_name(neighbor, category)
             candidates.append(
-                RecommendationItem(product_id=neighbor, weight=weight, category=category)
+                RecommendationItem(
+                    product_id=neighbor,
+                    product_name=name,
+                    weight=weight,
+                    category=category,
+                )
             )
 
         # Deterministic sorting: weight descending, then product_id ascending
@@ -154,12 +165,14 @@ class ProductGraphService:
         for pid in direct_ids:
             if pid not in seen:
                 seen.add(pid)
+                cat = self._get_category(pid)
                 results.append(
                     SearchItem(
                         product_id=pid,
+                        product_name=synthesize_product_name(pid, cat),
                         match_type="direct",
                         weight=None,
-                        category=self._get_category(pid),
+                        category=cat,
                     )
                 )
             if len(results) >= limit:
@@ -191,16 +204,116 @@ class ProductGraphService:
         for neighbor, weight in expanded:
             if neighbor not in seen:
                 seen.add(neighbor)
+                cat = self._get_category(neighbor)
                 results.append(
                     SearchItem(
                         product_id=neighbor,
+                        product_name=synthesize_product_name(neighbor, cat),
                         match_type="expanded",
                         weight=weight,
-                        category=self._get_category(neighbor),
+                        category=cat,
                     )
                 )
             if len(results) >= limit:
                 break
+
+    def to_node_link_data(
+        self,
+        *,
+        min_weight: int = 1,
+        product_id: str | None = None,
+        max_nodes: int = 150,
+    ) -> GraphDataResponse:
+        """Export graph or subgraph into standard Node-Link JSON for dashboard renderers.
+
+        Args:
+            min_weight: Filter out edges below this co-occurrence threshold.
+            product_id: If provided, extracts the local ego-network around this product.
+                If None, extracts top connected nodes globally.
+            max_nodes: Maximum nodes to return to maintain responsive frontend rendering.
+
+        Returns:
+            GraphDataResponse ready for D3, Cytoscape, ECharts, or dashboard APIs.
+        """
+        if product_id is not None:
+            return self._build_ego_subgraph(product_id, min_weight, max_nodes)
+        return self._build_global_subgraph(min_weight, max_nodes)
+
+    def _build_ego_subgraph(
+        self, product_id: str, min_weight: int, max_nodes: int
+    ) -> GraphDataResponse:
+        """Extract ego-network centered on a specific product."""
+        if product_id not in self.graph:
+            return GraphDataResponse(nodes=[], links=[], total_nodes=0, total_links=0)
+
+        neighbors: list[tuple[str, int]] = []
+        for n in self.graph.neighbors(product_id):
+            w = int(self.graph[product_id][n]["weight"])
+            if w >= min_weight:
+                neighbors.append((n, w))
+
+        neighbors.sort(key=lambda item: (-item[1], item[0]))
+        selected_nodes = [product_id] + [n for n, _ in neighbors[: max_nodes - 1]]
+        node_set = set(selected_nodes)
+
+        nodes = [
+            GraphNode(
+                id=nid,
+                name=synthesize_product_name(nid, self._get_category(nid)),
+                category=self._get_category(nid),
+                degree=self.graph.degree[nid],
+            )
+            for nid in selected_nodes
+        ]
+        sub = self.graph.subgraph(node_set)
+        links = [
+            GraphLink(source=u, target=v, weight=int(d["weight"]))
+            for u, v, d in sub.edges(data=True)
+            if int(d["weight"]) >= min_weight
+        ]
+        return GraphDataResponse(
+            nodes=nodes,
+            links=links,
+            total_nodes=len(nodes),
+            total_links=len(links),
+        )
+
+    def _build_global_subgraph(self, min_weight: int, max_nodes: int) -> GraphDataResponse:
+        """Extract top co-occurring edges globally across all products."""
+        filtered_edges = [
+            (u, v, int(d["weight"]))
+            for u, v, d in self.graph.edges(data=True)
+            if int(d["weight"]) >= min_weight
+        ]
+        # Sort by weight descending
+        filtered_edges.sort(key=lambda e: (-e[2], e[0], e[1]))
+
+        node_set: set[str] = set()
+        chosen_edges: list[GraphLink] = []
+
+        for u, v, w in filtered_edges:
+            if len(node_set) < max_nodes or (u in node_set and v in node_set):
+                node_set.add(u)
+                node_set.add(v)
+                chosen_edges.append(GraphLink(source=u, target=v, weight=w))
+            if len(node_set) >= max_nodes:
+                break
+
+        nodes = [
+            GraphNode(
+                id=nid,
+                name=synthesize_product_name(nid, self._get_category(nid)),
+                category=self._get_category(nid),
+                degree=self.graph.degree[nid],
+            )
+            for nid in sorted(node_set)
+        ]
+        return GraphDataResponse(
+            nodes=nodes,
+            links=chosen_edges,
+            total_nodes=len(nodes),
+            total_links=len(chosen_edges),
+        )
 
 
 def load_discovery_service(

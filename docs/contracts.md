@@ -69,6 +69,8 @@ is a config change, not a rewrite.
 |---|---|---|---|---|
 | `/products/{product_id}/recommendations` | GET | `limit: int = 5` | `RecommendationResponse` | Ranked neighbors by weight DESC, tie-broken by `product_id ASC`. |
 | `/products/search` | GET | `q: str, expand: bool = true, limit: int = 10` | `SearchResponse` | Direct category matches first, followed by 1-hop graph neighbors. |
+| `/products/graph` | GET | `min_weight: int = 2, max_nodes: int = 150` | `GraphDataResponse` | Node-link JSON for dashboard network visualizers (D3, Cytoscape). |
+| `/products/{product_id}/graph` | GET | `min_weight: int = 1, max_nodes: int = 50` | `GraphDataResponse` | Ego-network centered on product for detail view. |
 
 ## Open items for the team
 
