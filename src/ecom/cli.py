@@ -18,7 +18,6 @@ from ecom.analysis.profile import build_profile
 from ecom.analysis.visualize import render_all
 from ecom.bench.harness import DEFAULT_TRIALS
 from ecom.bench.report import load_results, render_figures, render_markdown
-from ecom.bench.run_bench import RESULTS_SUBDIR, run_all
 from ecom.cleaning.run_clean import clean_all
 from ecom.config import get_settings
 from ecom.ingestion.ingest import ingest_all
@@ -82,6 +81,8 @@ def _cmd_validate_inventory(_: argparse.Namespace) -> int:
 
 def _cmd_bench(args: argparse.Namespace) -> int:
     """Run the optimisation study, then render its report and figures."""
+    from ecom.bench.run_bench import RESULTS_SUBDIR, run_all
+
     settings = get_settings()
     out = settings.resolve(settings.reports_dir) / RESULTS_SUBDIR
 
@@ -143,6 +144,27 @@ def _cmd_analyse(args: argparse.Namespace) -> int:
     if not args.no_figures:
         for path in render_all(profile, figures_dir=reports_dir / "figures"):
             print(f"wrote {path}")
+    return 0
+
+
+def _cmd_visualize_graph(args: argparse.Namespace) -> int:
+    """Generate an interactive HTML visualization of the co-occurrence graph."""
+    from ecom.discovery import load_discovery_service, render_interactive_graph_html
+
+    service = load_discovery_service()
+    data = service.to_node_link_data(
+        min_weight=args.min_weight,
+        product_id=args.product_id,
+        max_nodes=args.max_nodes,
+    )
+    settings = get_settings()
+    out_dir = settings.resolve(settings.reports_dir) / "figures"
+    out_path = out_dir / "cooccurrence_graph.html"
+    rendered = render_interactive_graph_html(data, out_path)
+    print(
+        f"wrote interactive graph ({data.total_nodes} nodes, {data.total_links} links) "
+        f"to {rendered}"
+    )
     return 0
 
 
@@ -210,6 +232,28 @@ def build_parser() -> argparse.ArgumentParser:
     pipeline = sub.add_parser("pipeline", help="ingest + clean + analyse")
     pipeline.add_argument("--no-figures", action="store_true", help="skip PNG rendering")
     pipeline.set_defaults(func=_cmd_pipeline)
+
+    viz_graph = sub.add_parser(
+        "visualize-graph", help="export interactive D3.js graph HTML for browser/dashboard"
+    )
+    viz_graph.add_argument(
+        "--min-weight",
+        type=int,
+        default=2,
+        help="filter edges below this weight (default 2)",
+    )
+    viz_graph.add_argument(
+        "--max-nodes",
+        type=int,
+        default=150,
+        help="maximum nodes to include (default 150)",
+    )
+    viz_graph.add_argument(
+        "--product-id",
+        default=None,
+        help="optional product ID for ego-network view",
+    )
+    viz_graph.set_defaults(func=_cmd_visualize_graph)
 
     return parser
 
