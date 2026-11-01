@@ -18,11 +18,13 @@ minio = ["minio>=7.2"]
 spark = ["pyspark>=3.5"]
 # The warehouse builds locally on DuckDB so its models and tests can run with
 # no cloud account; dbt-bigquery is only needed for the production target.
-warehouse = ["dbt-core>=1.8", "dbt-duckdb>=1.8"]
+warehouse = ["dbt-core>=1.8", "dbt-duckdb>=1.8", "duckdb>=1.0"]
 bigquery = ["dbt-bigquery>=1.8", "google-cloud-bigquery>=3.0"]
 # duckdb is also used by the optimisation study as a comparison query engine.
 bench = ["duckdb>=1.0", "scipy>=1.11", "psutil>=5.9"]
-dev = ["ruff", "black", "pytest", "pytest-cov"]
+# The API serves the discovery and inventory services plus the dashboard page.
+api = ["fastapi>=0.110", "uvicorn>=0.29"]
+dev = ["ruff", "black", "pytest", "pytest-cov", "httpx>=0.27"]
 
 [project.scripts]
 ecom = "ecom.cli:main"
@@ -33,6 +35,9 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"ecom.api" = ["static/*"]
 
 # ---------------------------------------------------------------- tooling
 [tool.black]

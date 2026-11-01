@@ -87,9 +87,29 @@ class Settings(BaseSettings):
 
     reports_dir: Path = Field(default=Path("reports"))
 
+    dbt_duckdb_path: Path = Path(".duckdb/ecom_dw.duckdb")
+    """The local warehouse file. Read from ECOM_DBT_DUCKDB_PATH, the same variable
+    dbt_warehouse/profiles.yml uses, and like it relative to dbt_warehouse/."""
+
+    gcp_project: str | None = None
+    """BigQuery project; also read by dbt_warehouse/profiles.yml as ECOM_GCP_PROJECT."""
+    bigquery_dataset: str = "olist_analytics_dev"
+    """Dataset dbt builds the marts into; matches the bigquery output in profiles.yml."""
+
+    api_host: str = "127.0.0.1"
+    """Loopback by default: the API has no authentication, so exposing it on a
+    network interface has to be a deliberate ECOM_API_HOST=0.0.0.0."""
+    api_port: int = 8000
+
     def resolve(self, value: Path) -> Path:
         """Make a configured path absolute against the repo root."""
         return value if value.is_absolute() else REPO_ROOT / value
+
+    @property
+    def warehouse_path(self) -> Path:
+        """Absolute path of the DuckDB warehouse dbt builds."""
+        path = self.dbt_duckdb_path
+        return path if path.is_absolute() else REPO_ROOT / "dbt_warehouse" / path
 
     @property
     def window_days(self) -> int:
