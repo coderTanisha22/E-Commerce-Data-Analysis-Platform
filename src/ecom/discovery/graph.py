@@ -17,6 +17,8 @@ import pandas as pd
 from ecom.config import Settings, get_settings
 from ecom.discovery.names import synthesize_product_name
 from ecom.discovery.schemas import (
+    CategoryRelationsResponse,
+    CategoryWeight,
     GraphDataResponse,
     GraphLink,
     GraphNode,
@@ -84,6 +86,15 @@ class ProductGraphService:
                 return str(val)
         return None
 
+    def category_of(self, product_id: str) -> str | None:
+        """English category of a product, or None if unknown or uncategorised."""
+        return self._get_category(product_id)
+
+    def knows_product(self, product_id: str) -> bool:
+        """Whether the product is in the catalogue or the co-occurrence graph."""
+        in_catalogue = not self._products.empty and product_id in self._products.index
+        return in_catalogue or product_id in self.graph
+
     def get_recommendations(
         self,
         product_id: str,
@@ -135,9 +146,59 @@ class ProductGraphService:
             return []
 
         q = query.strip().lower()
+        # Categories are slugs ("bed_bath_table"), so "bed bath" should find them.
+        # regex=False because the query is user input: "(" must not raise.
+        slug = q.replace(" ", "_")
         cat_series = self._products["product_category_english"].astype(str).str.lower()
-        mask = cat_series.str.contains(q, na=False) | (self._products.index.str.lower() == q)
-        return list(self._products[mask].index)
+        mask = cat_series.str.contains(slug, regex=False, na=False) | (
+            self._products.index.str.lower() == q
+        )
+        # Connected products first: ~85% of the catalogue was never bought with
+        # another product, and in catalogue order those dead ends filled the page.
+        return sorted(self._products[mask].index, key=lambda pid: (-self.degree_of(pid), pid))
+
+    def knows_category(self, category: str) -> bool:
+        """Whether any catalogue product carries this English category name."""
+        if self._products.empty:
+            return False
+        return bool((self._products["product_category_english"] == category).any())
+
+    def degree_of(self, product_id: str) -> int:
+        """Distinct products bought with this one; 0 if it has no co-purchases."""
+        return int(self.graph.degree[product_id]) if product_id in self.graph else 0
+
+    def category_relations(self, category: str, *, limit: int = 8) -> CategoryRelationsResponse:
+        """Categories bought alongside this one, and its products that have co-purchases.
+
+        The category tier of the two-tier design: it answers for products the
+        product graph cannot, because a sparse product pair still adds weight
+        to the pair of categories it connects.
+        """
+        weights: dict[str, int] = {}
+        for u, v, data in self.graph.edges(data=True):
+            cat_u, cat_v = self._get_category(u), self._get_category(v)
+            if cat_u is None or cat_v is None or cat_u == cat_v:
+                continue
+            if category in (cat_u, cat_v):
+                other = cat_v if cat_u == category else cat_u
+                weights[other] = weights.get(other, 0) + int(data["weight"])
+        related = sorted(weights.items(), key=lambda item: (-item[1], item[0]))[:limit]
+
+        members = [n for n in self.graph.nodes if self._get_category(n) == category]
+        members.sort(key=lambda pid: (-self.degree_of(pid), pid))
+        return CategoryRelationsResponse(
+            category=category,
+            related=[CategoryWeight(category=name, weight=w) for name, w in related],
+            connected_products=[
+                GraphNode(
+                    id=pid,
+                    name=synthesize_product_name(pid, category),
+                    category=category,
+                    degree=self.degree_of(pid),
+                )
+                for pid in members[:limit]
+            ],
+        )
 
     def search_products(
         self,
@@ -173,6 +234,7 @@ class ProductGraphService:
                         match_type="direct",
                         weight=None,
                         category=cat,
+                        degree=self.degree_of(pid),
                     )
                 )
             if len(results) >= limit:
@@ -212,6 +274,7 @@ class ProductGraphService:
                         match_type="expanded",
                         weight=weight,
                         category=cat,
+                        degree=self.degree_of(neighbor),
                     )
                 )
             if len(results) >= limit:

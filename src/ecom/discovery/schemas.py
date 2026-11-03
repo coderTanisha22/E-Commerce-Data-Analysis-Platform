@@ -42,6 +42,9 @@ class SearchItem(BaseModel):
         None, description="Co-occurrence weight to the seed match (expanded only)"
     )
     category: str | None = Field(None, description="English category name")
+    degree: int = Field(
+        0, ge=0, description="Distinct products ever bought with it; 0 means no co-purchases"
+    )
 
 
 class SearchResponse(BaseModel):
@@ -78,3 +81,27 @@ class GraphDataResponse(BaseModel):
     links: list[GraphLink] = Field(default_factory=list, description="List of co-occurrence edges")
     total_nodes: int = Field(..., ge=0, description="Total nodes in subgraph")
     total_links: int = Field(..., ge=0, description="Total links in subgraph")
+
+
+class CategoryWeight(BaseModel):
+    """Another category and how often its products were bought with this one's."""
+
+    category: str = Field(..., description="English category name")
+    weight: int = Field(..., ge=1, description="Orders pairing products across the two")
+
+
+class CategoryRelationsResponse(BaseModel):
+    """The category-level fallback for products that were never bought with another.
+
+    About 85% of the catalogue has no product-level co-purchase, so a product
+    view needs somewhere to send the reader: the categories bought alongside
+    this one, and the products in it that do have co-purchases.
+    """
+
+    category: str = Field(..., description="English category name")
+    related: list[CategoryWeight] = Field(
+        default_factory=list, description="Categories co-purchased with it, strongest first"
+    )
+    connected_products: list[GraphNode] = Field(
+        default_factory=list, description="Its products with co-purchases, most connected first"
+    )

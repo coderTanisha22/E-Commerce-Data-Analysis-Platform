@@ -234,6 +234,28 @@ def test_empty_search_query_returns_empty_list(
     assert resp.results == []
 
 
+def test_search_treats_query_as_literal_text(sample_products: pd.DataFrame) -> None:
+    """Regex metacharacters in user input match literally instead of raising."""
+    pairs_df = pd.DataFrame(
+        {"product_a": ["p_apple"], "product_b": ["p_banana"], "order_count": [1]}
+    )
+    service = ProductGraphService(pairs=pairs_df, products=sample_products)
+    assert service.search_products(query="(").total_found == 0
+    assert service.search_products(query="fru.t").total_found == 0
+
+
+def test_search_matches_spaced_query_against_category_slug(
+    sample_products: pd.DataFrame,
+) -> None:
+    """'dried fruit' finds the 'dried_fruit' category slug."""
+    pairs_df = pd.DataFrame(
+        {"product_a": ["p_apple"], "product_b": ["p_banana"], "order_count": [1]}
+    )
+    service = ProductGraphService(pairs=pairs_df, products=sample_products)
+    resp = service.search_products(query="dried fruit", expand_graph=False)
+    assert [item.product_id for item in resp.results] == ["p_date"]
+
+
 def test_schema_serialization(sample_products: pd.DataFrame) -> None:
     """Verify responses serialize to dictionary matching expected API JSON."""
     pairs_df = pd.DataFrame(
@@ -293,9 +315,7 @@ def test_to_node_link_data_ego_subgraph(sample_products: pd.DataFrame) -> None:
     assert "p_date" not in node_ids
 
 
-def test_render_interactive_graph_html(
-    sample_products: pd.DataFrame, tmp_path: Path
-) -> None:
+def test_render_interactive_graph_html(sample_products: pd.DataFrame, tmp_path: Path) -> None:
     """Verify interactive HTML export creates a valid D3.js visualization file."""
     pairs_df = pd.DataFrame(
         {

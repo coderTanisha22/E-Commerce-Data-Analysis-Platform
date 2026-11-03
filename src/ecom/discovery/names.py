@@ -63,4 +63,3 @@ def synthesize_product_name(product_id: str, category: str | None = None) -> str
 
     clean_category = category.replace("_", " ").title()
     return f"{adj} {clean_category} {style} · #{short_hash}"
-
