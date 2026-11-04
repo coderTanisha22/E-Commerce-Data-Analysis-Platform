@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Olist Retail Dashboard</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js" defer></script>
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <header class="page">
+    <h1>Olist Retail Dashboard</h1>
+    <div class="provenance" id="provenance">Loading data…</div>
+  </header>
+
+  <main>
+    <section class="tiles" id="tiles" aria-label="Headline figures"></section>
+
+    <div class="row">
+      <section class="card">
+        <h2>Orders per month</h2>
+        <p class="subtitle" id="orders-subtitle">Distinct orders placed, inside the analysis window</p>
+        <svg id="orders-chart" role="img" aria-label="Line chart of orders per month"></svg>
+        <details>
+          <summary>Show as table</summary>
+          <div class="table-wrap"><table id="orders-table"></table></div>
+        </details>
+      </section>
+
+      <section class="card">
+        <h2>Restock status</h2>
+        <p class="subtitle">Seller-products by status. Stock levels are synthetic; sales velocity is real.</p>
+        <div class="segbar" id="status-bar" role="img"></div>
+        <div class="legend" id="status-legend"></div>
+        <h2 style="margin-top:20px">Most urgent categories</h2>
+        <p class="subtitle">Urgent seller-products per category</p>
+        <svg id="category-chart" role="img" aria-label="Bar chart of urgent seller-products by category"></svg>
+      </section>
+    </div>
+
+    <section class="card">
+      <h2>Restock list</h2>
+      <p class="subtitle">Most urgent first, then fewest days of stock left. Click a row to open the product.</p>
+      <div class="filters">
+        <label class="sr-only" for="f-status">Status</label>
+        <select id="f-status">
+          <option value="">All statuses</option>
+          <option>Urgent</option>
+          <option>Monitor</option>
+          <option>Healthy</option>
+          <option>Insufficient data</option>
+        </select>
+        <label class="sr-only" for="f-category">Category</label>
+        <select id="f-category"><option value="">All categories</option></select>
+        <label class="sr-only" for="f-seller">Seller ID</label>
+        <input id="f-seller" placeholder="Seller ID" size="34" autocomplete="off">
+        <button id="f-clear" type="button">Clear</button>
+      </div>
+      <div class="table-wrap"><table id="inventory-table"></table></div>
+      <div class="pager">
+        <button id="prev" type="button">Previous</button>
+        <button id="next" type="button">Next</button>
+        <span id="page-info"></span>
+      </div>
+    </section>
+
+    <section class="card" id="explorer-card">
+      <h2>Product explorer</h2>
+      <p class="subtitle">Search a category, pick a product, see what is bought with it. Edge thickness is the number of shared orders.</p>
+      <div class="explorer">
+        <div>
+          <div class="filters">
+            <label class="sr-only" for="search">Search products</label>
+            <input id="search" placeholder="Category, e.g. bed bath" autocomplete="off" style="flex:1">
+            <button id="show-global" type="button">Strongest pairs</button>
+          </div>
+          <ul class="list" id="search-results" aria-label="Search results"></ul>
+        </div>
+        <div>
+          <div id="product-panel" class="empty">Pick a product to see its co-purchases, or show the strongest pairs overall.</div>
+          <svg id="graph" role="img" aria-label="Co-purchase network"></svg>
+          <ul class="list" id="recommendations" aria-label="Recommendations"></ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="tooltip" id="tooltip" role="tooltip"></div>
+</body>
+</html>
