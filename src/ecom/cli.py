@@ -177,6 +177,50 @@ def _cmd_pipeline(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_extract(_: argparse.Namespace) -> int:
+    """Check every source file against its contract without writing anything."""
+    from ecom.orchestration.steps import check_sources
+
+    rows = check_sources()
+    for table, count in rows.items():
+        print(f"  source/{table:<22} {count:>8,} rows  ok")
+    return 0
+
+
+def _cmd_reconcile_warehouse(args: argparse.Namespace) -> int:
+    """Compare the dbt warehouse with the processed layer; fail on any mismatch."""
+    from ecom.orchestration.steps import reconcile_bigquery, reconcile_warehouse
+
+    check = reconcile_bigquery if args.target == "bigquery" else reconcile_warehouse
+    for result in check():
+        print(f"  {result.name:<36} {result.detail}")
+    return 0
+
+
+def _cmd_ready(_: argparse.Namespace) -> int:
+    """Load the data as the API would and confirm it matches this run."""
+    from ecom.orchestration.steps import check_dashboard_ready
+
+    for key, value in check_dashboard_ready().items():
+        print(f"  {key:<18} {value}")
+    return 0
+
+
+def _cmd_serve(args: argparse.Namespace) -> int:
+    """Serve the API and dashboard over the current processed layer."""
+    # Imported here so the pipeline commands work without the [api] extra.
+    import uvicorn
+
+    from ecom.api import create_app
+
+    settings = get_settings()
+    host = args.host or settings.api_host
+    port = args.port or settings.api_port
+    print(f"dashboard on http://{host}:{port}/  -  API docs on http://{host}:{port}/docs")
+    uvicorn.run(create_app(), host=host, port=port, log_level=settings.log_level.lower())
+    return 0
+
+
 def _cmd_storage(_: argparse.Namespace) -> int:
     """Show the active backend and what it currently holds."""
     storage = get_storage()
@@ -254,6 +298,25 @@ def build_parser() -> argparse.ArgumentParser:
         help="optional product ID for ego-network view",
     )
     viz_graph.set_defaults(func=_cmd_visualize_graph)
+
+    sub.add_parser(
+        "extract", help="check source files against their contracts, writing nothing"
+    ).set_defaults(func=_cmd_extract)
+    reconcile = sub.add_parser(
+        "reconcile-warehouse", help="fail unless the dbt warehouse matches the processed layer"
+    )
+    reconcile.add_argument(
+        "--target", choices=("duckdb", "bigquery"), default="duckdb", help="which warehouse"
+    )
+    reconcile.set_defaults(func=_cmd_reconcile_warehouse)
+    sub.add_parser(
+        "ready", help="confirm the API would serve this run's data consistently"
+    ).set_defaults(func=_cmd_ready)
+
+    serve = sub.add_parser("serve", help="run the API and dashboard")
+    serve.add_argument("--host", default=None, help="override ECOM_API_HOST")
+    serve.add_argument("--port", type=int, default=None, help="override ECOM_API_PORT")
+    serve.set_defaults(func=_cmd_serve)
 
     return parser
 
