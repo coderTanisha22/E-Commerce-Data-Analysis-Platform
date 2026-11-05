@@ -59,9 +59,26 @@ is a config change, not a rewrite.
 | Order filter | Excludes `canceled` and `unavailable` orders (`ecom.config.EXCLUDED_STATUSES`). In-flight orders (`shipped`, `invoiced`, `processing`) are preserved. |
 | Reconciled metrics | Exactly **4,054 pairs**, **4,881 unique products**, total weight sum **4,476**. |
 
-## Contract 4 — Warehouse → Inventory (owner: D)
+## Contract 4 — Processed layer → Inventory API & dashboard (owner: D)
 
-*(To be filled by Member D)*
+| Field | Value |
+|---|---|
+| Upstream Source | `data/processed/synthetic_inventory.parquet`, joined to `products` (category) and `sellers` (city, state), read through `ecom.storage` so local and MinIO both work |
+| Grain | One row per (`seller_id`, `product_id`); 33,787 rows. Uniqueness asserted upstream by the inventory generator |
+| Status values | Exactly `Urgent`, `Monitor`, `Healthy`, `Insufficient data` (`ecom.synthetic.inventory.STATUS_*`). The API rejects any other value with 422 |
+| Ordering | Urgent → Monitor → Healthy → Insufficient data, then `days_of_inventory` ascending, then `seller_id`, `product_id` — deterministic, so pagination is stable |
+| Synthetic marker | `is_synthetic = true` on every row. Stock columns (`current_quantity`, `lead_time_days`, `last_restock_date`) are generated; `units_sold` and `daily_sales_rate` are real. The dashboard says so next to the status chart |
+| Loading | `ecom.api.loader.load_platform` reads the processed layer once at startup (~1 s). A missing table fails startup with a message naming `make pipeline` |
+| Reconciled metrics | 33,787 rows: Urgent 206, Monitor 382, Healthy 8,363, Insufficient data 24,836. `reorder_point` is fractional units (2 dp); `current_quantity` is a whole number ≥ 1. Overview figures reuse `analysis.profile` functions, so they cannot drift from `reports/profile.json` |
+
+| Endpoint | Method | Params | Response Schema | Description |
+|---|---|---|---|---|
+| `/inventory` | GET | `status`, `seller_id`, `category`, `limit: int = 50 (≤500)`, `offset: int = 0` | `InventoryListResponse` | Filtered page, most urgent first; `total_found` counts before paging |
+| `/inventory/summary` | GET | — | `InventorySummary` | Count and share per status (zero-count statuses included), top 10 urgent categories, category list |
+| `/sellers/{seller_id}/inventory` | GET | — | `SellerInventoryResponse` | Every row for one seller; 404 if the seller holds none |
+| `/overview` | GET | — | `OverviewResponse` | Headline KPIs, orders per month inside the window, inventory summary |
+| `/health` | GET | — | `HealthResponse` | Liveness, storage backend, ingestion and inventory build timestamps, graph and inventory sizes |
+| `/` | GET | — | HTML | The dashboard. It reads only the endpoints in this file |
 
 ## Contract 5 — Discovery API → UI (owner: C, consumer: D)
 
@@ -71,6 +88,9 @@ is a config change, not a rewrite.
 | `/products/search` | GET | `q: str, expand: bool = true, limit: int = 10` | `SearchResponse` | Direct category matches first, followed by 1-hop graph neighbors. |
 | `/products/graph` | GET | `min_weight: int = 2, max_nodes: int = 150` | `GraphDataResponse` | Node-link JSON for dashboard network visualizers (D3, Cytoscape). |
 | `/products/{product_id}/graph` | GET | `min_weight: int = 1, max_nodes: int = 50` | `GraphDataResponse` | Ego-network centered on product for detail view. |
+| `/products/{product_id}` | GET | — | `ProductDetail` | Name, category, graph degree and per-seller inventory. 404 if the product is in neither the catalogue nor the graph. Added by D. |
+
+Served by `ecom.api.app` (`make serve`); schemas in `ecom.discovery.schemas` and `ecom.api.schemas`. Interactive docs at `/docs`. Search treats `q` as literal text (not a regex) and matches spaces against category slugs, so `bed bath` finds `bed_bath_table`.
 
 ## Open items for the team
 
@@ -78,4 +98,4 @@ is a config change, not a rewrite.
 
 - [x] B to review this file and confirm schema/grain before building staging models (Completed)
 - [x] C added graph and discovery contract (Completed)
-- [ ] D to add inventory and dashboard contract sections below
+- [x] D added inventory, API and dashboard contract (Contract 4) (Completed)
