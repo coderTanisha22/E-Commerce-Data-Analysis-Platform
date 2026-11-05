@@ -155,10 +155,9 @@ def plot_distributions(table: pd.DataFrame, out_dir: Path) -> Path:
 def plot_stock_scales_with_speed(table: pd.DataFrame, out_dir: Path) -> Path:
     """Mean reorder point and stock by sales-rate decile.
 
-    The mean is used rather than the median on purpose: because the reorder
-    point is an integer with a floor of 1, the median is 1 for nine deciles out
-    of ten and hides the relationship entirely. The mean shows the gradient that
-    is actually there, and the caption states that most individual values are 1.
+    The mean is used rather than the median because stock is floored at one
+    unit, so the median stock is 1 for the slowest deciles; the mean shows the
+    gradient. The reorder point is fractional, so it rises across every decile.
     """
     served = table[table["evidence"] == "sufficient"].copy()
     served["decile"] = pd.qcut(served["daily_sales_rate"], 10, labels=False, duplicates="drop")

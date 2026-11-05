@@ -1,8 +1,8 @@
 # Synthetic Inventory: Validation Report
 
 **Table:** `data/processed/synthetic_inventory.parquet` · **Rows:** 33,787 ·
-**Seed:** 42 · **SHA-256:** `f0881d74ef39da3d8cff47272ffcf1cc83577066d3e06347bf1f2d830248cfa2`
-**Generated:** 2026-09-27T20:40:34+00:00 · every row carries `is_synthetic = True`.
+**Seed:** 42 · **SHA-256:** `8afabc716a0ea56be42555a942ec21c2071a03ef31b67ab935ef7c189a326a35`
+**Generated:** 2026-11-02T16:59:45+00:00 · every row carries `is_synthetic = True`.
 
 Olist records real sales but no stock levels. Without stock, `days_of_inventory`
 cannot be computed and the restock rule has nothing to classify. This table supplies
@@ -20,8 +20,8 @@ the missing operational fields while keeping every sales-derived number real.
 | daily_sales_rate | real | units_sold / active_days |
 | evidence | real | 'sufficient' if units_sold >= 3 else 'insufficient' |
 | lead_time_days | SYNTHETIC | one uniform integer 5-20 drawn per seller |
-| reorder_point | derived | max(1, ceil(daily_sales_rate x (lead_time_days + 3))) |
-| current_quantity | SYNTHETIC | round(reorder_point x uniform(0.2, 3.0)) |
+| reorder_point | derived | round(daily_sales_rate x (lead_time_days + 3), 2), fractional units |
+| current_quantity | SYNTHETIC | max(1, round(daily_sales_rate x (lead_time_days + 3) x uniform(0.2, 3.0))) |
 | last_restock_date | SYNTHETIC | AS_OF - uniform integer 1-60 days |
 | days_of_inventory | derived | current_quantity / daily_sales_rate |
 | status | derived | Insufficient data / Urgent / Monitor / Healthy |
@@ -55,28 +55,30 @@ or outside the window, so they have no demand signal and are not given stock.
 | A | Grain unique on (seller_id, product_id) | PASS | 33,787 rows, 0 duplicates |
 | A | Every pair exists in order_lines (FK) | PASS | 0 invented pairs |
 | A | No nulls in any column | PASS | 0 nulls |
-| A | Quantities and rates non-negative | PASS | min rate 0.001736 |
+| A | Quantities and rates non-negative | PASS | min rate 0.001733 |
 | A | lead_time_days within [5, 20] | PASS | observed 5-20 |
 | A | Exactly one lead time per seller | PASS | 3,010 sellers |
 | A | reorder_point formula exact on every row | PASS | asserted row-wise |
+| A | Stock never rounds to zero | PASS | 0 rows with current_quantity = 0 |
+| A | At or below the reorder point is never Healthy | PASS | 0 of 8,951 scored rows (was 2,776) |
 | A | status rule exact on every row | PASS | asserted row-wise |
 | A | Real inputs unchanged by generation | PASS | order_lines unchanged, orders unchanged |
-| B | Same seed -> identical SHA-256 | PASS | f0881d74ef39da3d... |
-| B | Different seed -> different SHA-256 | PASS | 0590bd2f4631cccb... |
+| B | Same seed -> identical SHA-256 | PASS | 8afabc716a0ea56b... |
+| B | Different seed -> different SHA-256 | PASS | 4f770bfcfb2cbeaa... (seed 7) |
 | B | Seed changes only synthetic columns | PASS | real columns identical across seeds |
 | C | units_sold recomputed independently matches | PASS | exact equality |
 | C | daily_sales_rate = units_sold / active_days | PASS | rtol 1e-12 |
 | C | Cancelled / out-of-window orders excluded | PASS | asserted on fixture |
 
-All tests/test_synthetic_inventory.py: tests in `tests/test_synthetic_inventory.py` pass: `......................                                                   [100%]`
+All 25 tests in `tests/test_synthetic_inventory.py` pass.
 
 ## 4. Seed stability (seeds 1–30)
 
 | status | mean_pct | std_pct | min_pct | max_pct |
 |---|---|---|---|---|
-| Urgent | 2.944 | 0.0952 | 2.788 | 3.099 |
-| Monitor | 0.757 | 0.032 | 0.696 | 0.82 |
-| Healthy | 22.792 | 0.0909 | 22.63 | 22.959 |
+| Urgent | 0.579 | 0.0396 | 0.515 | 0.687 |
+| Monitor | 1.181 | 0.0431 | 1.119 | 1.341 |
+| Healthy | 24.733 | 0.0452 | 24.637 | 24.817 |
 | Insufficient data | 73.508 | 0.0 | 73.508 | 73.508 |
 
 Status shares move by well under one percentage point across 30 seeds. The conclusion
@@ -90,21 +92,24 @@ evidence rule uses only real sales and is untouched by the generator.
 
 | parameter | value | Urgent | Monitor | Healthy | Insufficient data | median_reorder_point | median_days_of_inventory |
 |---|---|---|---|---|---|---|---|
-| safety_days | 0 | 2.969 | 0.918 | 22.606 | 73.508 | 1.0 | 164.0 |
-| safety_days | 3 | 2.859 | 0.737 | 22.896 | 73.508 | 1.0 | 164.0 |
-| safety_days | 7 | 2.673 | 0.482 | 23.337 | 73.508 | 1.0 | 164.0 |
-| stock_factor_range | (0.2, 3.0) | 2.859 | 0.737 | 22.896 | 73.508 | 1.0 | 164.0 |
-| stock_factor_range | (0.5, 2.0) | 0.337 | 1.356 | 24.799 | 73.508 | 1.0 | 153.0 |
-| stock_factor_range | (0.1, 4.0) | 2.72 | 0.521 | 23.252 | 73.508 | 1.0 | 205.0 |
-| lead_time_range | (3, 10) | 2.693 | 0.728 | 23.071 | 73.508 | 1.0 | 164.0 |
-| lead_time_range | (5, 20) | 2.859 | 0.737 | 22.896 | 73.508 | 1.0 | 164.0 |
-| lead_time_range | (10, 30) | 3.016 | 0.846 | 22.63 | 73.508 | 1.0 | 164.3 |
+| safety_days | 0 | 0.775 | 1.512 | 24.205 | 73.508 | 0.09 | 125.7 |
+| safety_days | 3 | 0.610 | 1.131 | 24.752 | 73.508 | 0.12 | 125.7 |
+| safety_days | 7 | 0.444 | 0.879 | 25.169 | 73.508 | 0.15 | 125.7 |
+| stock_factor_range | (0.2, 3.0) | 0.610 | 1.131 | 24.752 | 73.508 | 0.12 | 125.7 |
+| stock_factor_range | (0.5, 2.0) | 0.648 | 1.838 | 24.006 | 73.508 | 0.12 | 125.7 |
+| stock_factor_range | (0.1, 4.0) | 0.494 | 0.873 | 25.125 | 73.508 | 0.12 | 125.7 |
+| lead_time_range | (3, 10) | 0.151 | 1.151 | 25.190 | 73.508 | 0.07 | 125.7 |
+| lead_time_range | (5, 20) | 0.610 | 1.131 | 24.752 | 73.508 | 0.12 | 125.7 |
+| lead_time_range | (10, 30) | 1.190 | 1.205 | 24.098 | 73.508 | 0.18 | 125.7 |
 
-The rule responds in the expected direction. Raising the lead-time range from (3,10) to
-(10,30) raises the Urgent share, because a longer wait for resupply means a given stock
-level covers proportionally less of it. Narrowing the stock factor from (0.1,4.0) to
-(0.5,2.0) cuts the extremes at both ends. Adding safety days raises the reorder point
-and pushes borderline rows from Healthy toward Monitor.
+The rule responds in the expected direction, and now does so strongly. Raising the
+lead-time range from (3,10) to (10,30) raises the Urgent share eightfold (0.15% to
+1.19%), because a longer wait for resupply means a given stock level covers
+proportionally less of it. Before the fix the same sweep moved Urgent only from 2.69% to
+3.02%: most Urgent rows were rounding artefacts that no parameter could reach. Adding
+safety days raises both the reorder point and the stock drawn from it, so fewer rows
+fall short. The median days of inventory no longer moves with the stock factor because
+the median row is a slow seller holding its one-unit floor.
 
 ## 6. Sanity against the real data
 
@@ -112,38 +117,59 @@ and pushes borderline rows from Healthy toward Monitor.
 
 The real sales rate is extremely skewed: the median seller-product sells
 0.0080 units per day. The synthetic stock inherits that
-skew because it is computed from the reorder point, which is computed from the rate.
+skew because it is computed from demand over the cover period, which is computed from the rate.
 
 ![Stock scales with speed](figures/inv_02_stock_vs_speed.png)
 
-The mean reorder point rises monotonically across the real sales-rate deciles
-(Spearman rho = 0.545 against the rate), so the synthetic layer is anchored to real
-demand rather than drawn independently of it.
+The reorder point now rises across every sales-rate decile, from 0.10 units in the
+slowest to 2.43 in the fastest (Spearman rho = 0.929 against the rate, up from 0.545
+when it was rounded up to whole units). Stock follows the rate at rho = 0.540, up from 0.204.
 
-**This relationship is weaker than it first looks, and we state that plainly.** The
-reorder point is an integer floored at 1, and 88.3% of sufficient-evidence rows sit
-exactly at that floor. Scaling is therefore only visible in the top two deciles; deciles
-1 to 8 are flat at 1.0. Because `current_quantity` is a random multiple of the reorder
-point, it inherits the flooring and is **not** monotonic across deciles — it wobbles
-around 1.6 units for every decile where the reorder point is 1 (Spearman rho = 0.204
-overall, rising to 0.362 on the 1,045 rows where the reorder point reaches 2 or more).
-The chart plots the mean per decile; the median would be 1 for nine deciles out of ten
-and would hide the effect entirely.
+| decile | mean rate / day | mean reorder point | mean stock |
+|---|---|---|---|
+| D1 (slowest) | 0.006 | 0.10 | 1.00 |
+| D5 | 0.017 | 0.26 | 1.00 |
+| D7 | 0.027 | 0.42 | 1.04 |
+| D9 | 0.056 | 0.86 | 1.54 |
+| D10 (fastest) | 0.156 | 2.43 | 3.87 |
+
+Stock is exactly one unit for 86.6% of scored rows, and that is intended: a seller
+listing a product that sells once every few months holds one of it, and one unit is
+months of cover, so the row is correctly Healthy. Stock only exceeds one unit where
+demand over the cover period does, which is the fastest three deciles.
+
+### What changed on 2 November 2026, and why
+
+The first version computed stock as `round(reorder_point x factor)` with the reorder
+point rounded up to a whole unit, at least 1. Measured on this table, that produced:
+
+| | before | after |
+|---|---|---|
+| Urgent rows | 966 | 206 |
+| Urgent rows that are urgent only because stock rounded to 0 | 85.3% | 0% |
+| Median sales rate, Urgent vs Healthy | 1.1x | **5.7x** |
+| Scored rows at or below their reorder point yet Healthy | 2,776 of 8,951 | 0 |
+| Spearman, stock vs rate | 0.204 | 0.540 |
+| Urgent share across 30 seeds | 2.944% +/- 0.095 | 0.579% +/- 0.040 |
+
+When the random factor fell below 0.5, a reorder point of 1 rounded to zero stock,
+which read as a stock-out, so whether a slow seller was Urgent came down to a coin flip.
+Simply dropping the integer ceiling makes this worse, not better: computing stock from
+the fractional reorder point rounds 96.6% of Urgent rows to zero and makes Urgent rows
+sell *slower* than Healthy ones (0.4x). The fix needed both parts: a fractional reorder
+point, so it agrees with the status rule, and a one-unit floor on stock, so rounding
+cannot invent a stock-out. The Urgent rows that remain are genuine: median 10.8 days of
+cover against a median 14.5-day lead time.
 
 ## 7. Limitations
 
 - **Stock is simulated.** `current_quantity`, `lead_time_days` and `last_restock_date`
   are invented. Restock flags demonstrate that the pipeline and the rule logic work;
   they are not statements about any real seller's warehouse.
-- **Most reorder points are 1.** 96.4% of all rows, and 88.3% of
-  sufficient-evidence rows, have `reorder_point = 1`, because
-  Olist velocity is very low — the median pair sells about one unit every
-  126 days. The integer ceiling floors at 1, so the
-  reorder point carries little information for slow movers. The practical consequence is
-  that stock scales with demand only in the fastest two deciles; below that the synthetic
-  stock is effectively noise around 1.6 units, and `current_quantity` is not monotonic in
-  the sales rate. A non-integer reorder point, or a units-per-month rather than
-  units-per-day rate, would remove this artefact.
+- **Stock-outs are not modelled.** The one-unit floor means no row starts at zero
+  stock. Real sellers do run out, but the share that do is not something Olist lets us
+  calibrate, so it is left out rather than guessed. Urgent therefore means "will run out
+  before a reorder arrives", never "has already run out".
 - **Only 8,951 of 33,787 rows (26.5%) have
   sufficient evidence.** The rest are labelled `Insufficient data` rather than scored,
   because a rate built on one or two sales is noise.
@@ -160,4 +186,5 @@ make pipeline                       # ingest -> clean
 .venv/bin/pytest tests/test_synthetic_inventory.py -q
 ```
 
-Re-running with seed 42 must reproduce SHA-256 `f0881d74ef39da3d8cff47272ffcf1cc...`.
+Re-running with seed 42 must reproduce SHA-256 `8afabc716a0ea56be42555a942ec21c2...`,
+through either the pandas reader or `ECOM_FAST_READER=1`.

@@ -14,7 +14,9 @@ import pytest
 
 from ecom.synthetic.inventory import (
     REAL_COLUMNS,
+    REORDER_POINT_DECIMALS,
     GeneratorParams,
+    add_synthetic_stock,
     assign_lead_times,
     build_sales_base,
     classify_status,
@@ -118,12 +120,43 @@ def test_one_lead_time_per_seller(table: pd.DataFrame) -> None:
 
 
 def test_reorder_point_formula_holds_on_every_row(table, params) -> None:
-    expected = np.maximum(
-        1, np.ceil(table["daily_sales_rate"] * (table["lead_time_days"] + params.safety_days))
-    ).astype("int64")
-    pd.testing.assert_series_equal(
-        table["reorder_point"], expected, check_names=False, check_dtype=False
+    """Exact cover-period demand, kept fractional rather than rounded up to 1."""
+    expected = (table["daily_sales_rate"] * (table["lead_time_days"] + params.safety_days)).round(
+        REORDER_POINT_DECIMALS
     )
+    pd.testing.assert_series_equal(table["reorder_point"], expected, check_names=False)
+
+
+def test_stock_never_rounds_to_zero(table, params) -> None:
+    """Zero stock reads as a stock-out; rounding must not invent one."""
+    assert (table["current_quantity"] >= params.min_stock_units).all()
+
+
+def test_reorder_point_agrees_with_status(table) -> None:
+    """At or below the reorder point is never Healthy.
+
+    The old integer reorder point broke this: one unit of a slow seller sat "at
+    its reorder point of 1" while the row was Healthy with months of cover.
+    """
+    scored = table[table["evidence"] == "sufficient"]
+    below = scored["current_quantity"] <= scored["reorder_point"]
+    assert scored.loc[below, "status"].isin(["Urgent", "Monitor"]).all()
+
+
+def test_add_synthetic_stock_floors_slow_sellers_at_one_unit(params) -> None:
+    """A seller-product selling 0.005/day would round 0.06 units of cover to 0."""
+    base = pd.DataFrame(
+        {
+            "seller_id": ["s1", "s1"],
+            "product_id": ["slow", "fast"],
+            "daily_sales_rate": [0.005, 2.0],
+        }
+    )
+    lead = pd.DataFrame({"seller_id": ["s1"], "lead_time_days": [10]})
+    out = add_synthetic_stock(base, lead, np.random.default_rng(0), params)
+    slow, fast = out.set_index("product_id").loc[["slow", "fast"], "current_quantity"]
+    assert slow == 1
+    assert fast > 1
 
 
 def test_days_of_inventory_formula_holds(table: pd.DataFrame) -> None:

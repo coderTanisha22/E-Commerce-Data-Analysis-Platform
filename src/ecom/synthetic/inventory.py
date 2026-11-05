@@ -51,6 +51,18 @@ would otherwise show an implausible rate from a single order."""
 LEAD_TIME_RANGE = (5, 20)
 SAFETY_DAYS = 3
 STOCK_FACTOR_RANGE = (0.2, 3.0)
+
+MIN_STOCK_UNITS = 1
+"""A listed product holds at least one whole unit. Without this floor, the
+median seller-product (0.008 units/day, so about 0.1 units of cover) rounds to
+zero stock, and a zero reads as a stock-out: measured, that rounding alone
+produced 85.3% of all Urgent rows and made Urgent rows sell no faster than
+Healthy ones (1.1x). With the floor, Urgent rows sell 5.7x faster."""
+
+REORDER_POINT_DECIMALS = 2
+"""The reorder point is kept fractional, not rounded up to whole units. Rounding
+up set 96.4% of reorder points to 1, so a slow seller holding one unit with
+months of cover read as "at its reorder point" while its status said Healthy."""
 RESTOCK_LOOKBACK_DAYS = (1, 60)
 MONITOR_EXTRA_DAYS = 7
 
@@ -90,7 +102,8 @@ class GeneratorParams:
         min_active_days: Floor applied to the rate denominator.
         lead_time_range: Inclusive integer range for a seller's lead time.
         safety_days: Extra days of cover added on top of the lead time.
-        stock_factor_range: Multiplier applied to the reorder point for stock.
+        stock_factor_range: Multiplier applied to cover-period demand for stock.
+        min_stock_units: Floor on generated stock for a listed product.
         restock_lookback_days: Range of days before ``as_of`` for the last restock.
         monitor_extra_days: Days beyond lead time that still counts as Monitor.
     """
@@ -104,6 +117,7 @@ class GeneratorParams:
     lead_time_range: tuple[int, int] = LEAD_TIME_RANGE
     safety_days: int = SAFETY_DAYS
     stock_factor_range: tuple[float, float] = STOCK_FACTOR_RANGE
+    min_stock_units: int = MIN_STOCK_UNITS
     restock_lookback_days: tuple[int, int] = RESTOCK_LOOKBACK_DAYS
     monitor_extra_days: int = MONITOR_EXTRA_DAYS
     metadata: dict = field(default_factory=dict, compare=False)
@@ -121,6 +135,7 @@ class GeneratorParams:
             "lead_time_range": list(self.lead_time_range),
             "safety_days": self.safety_days,
             "stock_factor_range": list(self.stock_factor_range),
+            "min_stock_units": self.min_stock_units,
             "restock_lookback_days": list(self.restock_lookback_days),
             "monitor_extra_days": self.monitor_extra_days,
         }
@@ -245,19 +260,25 @@ def add_synthetic_stock(
     fast-selling product gets a larger trigger than a slow one. Only the stock
     multiplier and the restock date are random.
 
+    Stock is drawn from the exact demand over the cover period, never from a
+    rounded reorder point, and is floored at ``MIN_STOCK_UNITS``. Both choices
+    keep rounding from deciding the status: see the two constants for the
+    measurements behind them.
+
     Returns:
         ``base`` plus the synthetic columns and ``reorder_point``.
     """
     out = base.merge(lead_times, on="seller_id", how="left", validate="many_to_one")
 
     cover_days = out["lead_time_days"] + params.safety_days
-    out["reorder_point"] = np.maximum(1, np.ceil(out["daily_sales_rate"] * cover_days)).astype(
-        "int64"
-    )
+    cover_demand = out["daily_sales_rate"] * cover_days
+    out["reorder_point"] = cover_demand.round(REORDER_POINT_DECIMALS)
 
     low, high = params.stock_factor_range
     factor = rng.uniform(low, high, size=len(out))
-    out["current_quantity"] = np.round(out["reorder_point"] * factor).astype("int64")
+    out["current_quantity"] = np.maximum(
+        params.min_stock_units, np.round(cover_demand * factor)
+    ).astype("int64")
 
     lo_days, hi_days = params.restock_lookback_days
     offset = rng.integers(lo_days, hi_days + 1, size=len(out))
