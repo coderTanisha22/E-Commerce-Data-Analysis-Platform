@@ -18,3 +18,6 @@ reports/*.csv
 
 #local files and folders
 claude_help/
+
+# local Airflow: its own venv and AIRFLOW_HOME (make airflow-install)
+.airflow/
