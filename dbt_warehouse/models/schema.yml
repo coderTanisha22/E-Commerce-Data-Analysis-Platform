@@ -60,6 +60,9 @@ models:
               arguments:
                 to: ref('dim_customers')
                 field: customer_id
+      - name: order_month_key
+        description: YYYYMM of the purchase; the BigQuery partition key. Filter on it to prune.
+        tests: [not_null]
   - name: int_order_products
     columns:
       - name: order_id
