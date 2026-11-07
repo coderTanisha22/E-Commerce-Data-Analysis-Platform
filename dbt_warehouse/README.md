@@ -23,7 +23,7 @@ Or from this directory:
 ../.venv/bin/dbt build --profiles-dir .
 ```
 
-Expected: `PASS=49 WARN=0 ERROR=0 SKIP=0 TOTAL=49` — 14 models and 35 tests.
+Expected: `PASS=50 WARN=0 ERROR=0 SKIP=0 TOTAL=50` — 14 models and 36 tests.
 
 The DuckDB file lands in `.duckdb/ecom_dw.duckdb` and is gitignored; it is a
 build artefact, rebuilt from scratch by `dbt build`.
@@ -57,15 +57,17 @@ build artefact, rebuilt from scratch by `dbt build`.
 ## Running against BigQuery
 
 ```bash
-pip install dbt-bigquery google-cloud-bigquery
-gcloud auth application-default login
-export ECOM_GCP_PROJECT=your-project-id
-export ECOM_GCP_LOCATION=US
-
-python scripts/load_to_bigquery.py --project "$ECOM_GCP_PROJECT" \
-    --processed-dir ../data/processed
-dbt build --profiles-dir . --target bigquery
+pip install -e '.[bigquery]'                    # from the repo root
+gcloud auth application-default login           # tick the Google Cloud data scope
+gcloud auth application-default set-quota-project "$ECOM_GCP_PROJECT"
+make warehouse-bq                               # load, dbt build, reconcile
 ```
+
+`make warehouse-bq` reads `ECOM_GCP_PROJECT` and `ECOM_GCP_LOCATION` from the
+repo's `.env`. It works in the free BigQuery sandbox. The sandbox forces a 60-day
+expiry on time partitions, which is why `fct_order_items` is partitioned by an
+integer range over `order_month_key` rather than by `order_date`: a DATE
+partition on 2016-2018 orders expires on arrival and leaves the table empty.
 
 `profiles.yml` is committed and carries no credentials — it reads the project
 id and location from the environment.
