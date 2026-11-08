@@ -5,13 +5,13 @@ ways so the strategies can be compared on identical input. Every strategy in a
 group must return the same answer; :mod:`ecom.bench.harness` checks that and
 records any disagreement instead of trusting it.
 
-The strategies are chosen to exercise named concepts from the course rather than
+The strategies are chosen to exercise named database concepts rather than
 to be an arbitrary collection of tricks:
 
 * **Join methods** — the co-occurrence self-join is written as a nested-loop
   join, a hash join, a sort-merge join, a declarative SQL join handed to a cost
-  based optimiser, and a sparse linear-algebra product. These are the lecture's
-  J1--J4 plus the formulation a column store would actually use.
+  based optimiser, and a sparse linear-algebra product. These are the four
+  classic join algorithms (J1--J4) plus the formulation a column store would actually use.
 * **Projection and predicate pushdown** — reading two columns of a Parquet file
   versus reading all fourteen and discarding twelve.
 * **Vectorisation** — replacing per-element Python calls with Arrow kernels that
@@ -56,7 +56,7 @@ that works, then re-parses; supplying the format skips the search entirely."""
 def cooccur_nested_loop(order_products: pd.DataFrame) -> pd.DataFrame:
     """Baseline: iterate baskets in Python and count pairs with a dict.
 
-    This is the shape of a classic nested-loop join (the lecture's J1): for each
+    This is the shape of a classic nested-loop join (J1): for each
     basket, every product is paired with every later product. Cost is
     ``sum(k choose 2)`` over baskets, all of it in interpreted code, so it pays
     roughly a microsecond of overhead per pair regardless of how few pairs there

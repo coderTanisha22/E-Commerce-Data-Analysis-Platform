@@ -84,8 +84,8 @@ class WorkloadResult:
 
     Attributes:
         workload: Human-readable name of the operation under test.
-        concept: The lecture concept this workload exercises, carried into the
-            report so each number is traceable to the syllabus.
+        concept: The database concept this workload exercises, carried into the
+            report so each number is traceable to the idea it tests.
         unit: What one row of input means, used to compute throughput.
         input_rows: Size of the input, the throughput denominator.
         measurements: One entry per strategy, in registration order.
@@ -259,7 +259,7 @@ def run_workload(
 
     Args:
         workload: Name of the operation under test.
-        concept: Lecture concept being exercised, for the report.
+        concept: Database concept being exercised, for the report.
         strategies: ``(name, callable)`` pairs, baseline first.
         input_rows: Input size, used for throughput.
         unit: What an input row is.
