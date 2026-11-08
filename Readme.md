@@ -79,7 +79,7 @@ against each other on identical input — the optimisation comparison the course
 asks for. PySpark is an **optional dependency**; the pandas path and every test
 that does not need Spark run without it installed.
 
-For everything about the project in one place (architecture, every design decision and its alternatives, syllabus mapping, viva preparation, debugging guide), read [docs/PROJECT_HANDBOOK.md](docs/PROJECT_HANDBOOK.md).
+For everything about the project in one place (architecture, every design decision and its alternatives, results, debugging guide), read [docs/PROJECT_HANDBOOK.md](docs/PROJECT_HANDBOOK.md).
 
 ## Setup
 

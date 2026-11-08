@@ -2,25 +2,18 @@
 
 **Course:** CSL4030 Data Engineering, IIT Jodhpur, 2026–27 (Semester 5)
 **Group:** 9 — Tanisha Ray (B24CM1061), Anika Sharma, Sanika Kole, Harshita Pareek
-**Handbook state:** 6 November 2026 (guest and expert lectures added). Every number below was measured from the code and data in this repository on or before that date.
+**Handbook state:** 6 November 2026. Every number below was measured from the code and data in this repository on or before that date.
 
 ---
 
 ## 0. How to use this file
 
-This file is a complete, self-contained description of the project: what it does, how every part works, every number it produces, why each design choice was made, what was rejected and why, how each choice connects to the syllabus, what goes wrong and how to fix it, and what is still weak.
+This file is a complete, self-contained description of the project: what it does, how every part works, every number it produces, why each design choice was made, what was rejected and why, what goes wrong and how to fix it, and what is still weak.
 
-It is written so that it can be:
+It is written to serve as:
 
-1. **Pasted into another AI assistant (ChatGPT, Gemini, a future Claude) as context.** Use this prompt with it:
-
-   > You are my tutor for a university Data Engineering course project. The attached handbook is the complete and authoritative description of my project. Treat every number and design decision in it as fact; if something is not in the handbook, say so instead of guessing. My instructor will cross-question me on *why* we chose each tool and technique, *why not* the alternatives, and how each choice connects to course topics (relational models, normalisation, hashing, indexing, query processing and optimisation, distributed query processing and fragmentation, transactions and OLTP, data warehousing and OLAP, big data and NoSQL, pipelines and dashboards). Teach me one section at a time, quiz me with the kind of questions she would ask, and correct my answers using the handbook.
-
-2. **The source for the written project report.** Sections 1–5 describe the system; sections 6–8 justify it; section 11 lists results; section 13 gives references.
-
-3. **A debugging manual.** Section 10 lists every failure we actually hit, its cause and its fix.
-
-4. **Viva preparation.** Section 7 maps every syllabus topic to the project and gives model answers to likely cross-questions, including "why not X?".
+1. **The reference for the system.** Sections 1–5 describe it; sections 6–7 justify it and trace it to the requirements; section 10 lists results; section 12 gives references.
+2. **A debugging manual.** Section 9 lists every failure we actually hit, its cause and its fix.
 
 ### Table of contents
 
@@ -30,15 +23,14 @@ It is written so that it can be:
 4. Architecture and data flow
 5. Every component in depth
 6. Design decisions and rejected alternatives
-7. Syllabus mapping and viva preparation (with model answers)
-8. Requirements traceability and honest gaps
-9. How to run everything
-10. Debugging guide
-11. Results and numbers cheat sheet
-12. Limitations and future work
-13. References, citations and AI-use note
-14. Glossary
-15. File-by-file map of the repository
+7. Requirements traceability and honest gaps
+8. How to run everything
+9. Debugging guide
+10. Results and numbers cheat sheet
+11. Limitations and future work
+12. References, citations and AI-use note
+13. Glossary
+14. File-by-file map of the repository
 
 ---
 
@@ -51,7 +43,7 @@ It is written so that it can be:
 1. **Product co-occurrence ("frequently bought together").** Find which products appear in the same orders, store them as a weighted graph (products are nodes, an edge's weight is the number of distinct orders containing both), and serve deterministic, explainable recommendations and search.
 2. **Inventory / restock analytics.** Combine each seller-product's **real** sales velocity with **synthetic** (generated) stock levels, compute days of inventory left, and flag every seller-product as *Urgent*, *Monitor*, *Healthy* or *Insufficient data*.
 
-**A deliberate non-goal: no machine learning.** Recommendations are graph lookups ranked by order counts; restock status is a transparent rule. Every output can be explained line by line, which is the point in a data-engineering course.
+**A deliberate non-goal: no machine learning.** Recommendations are graph lookups ranked by order counts; restock status is a transparent rule. Every output can be explained line by line, which is a design requirement.
 
 **The stack (all of it runs):**
 
@@ -93,34 +85,22 @@ The team split the platform into four owned stages, recorded as data contracts i
 | Person C | Anika Sharma | Graph and discovery service (`src/ecom/discovery/`): NetworkX graph, ranked recommendations, search, Pydantic schemas, D3 graph export, contracts 3 and 5 |
 | Person D | Tanisha Ray | API, dashboard and end-to-end run (`src/ecom/api/`), contract 4; also the main pandas pipeline, synthetic inventory, the optimisation study, integration/merges, Airflow DAG, BigQuery run |
 
-### 2.2 Timeline (from git history and the course calendar)
+### 2.2 Timeline (from git history)
 
 | Date (2026) | Event |
 |---|---|
-| 30 Jul | Course starts |
 | 14 Aug | Project start date in the Lab 1 tracker (problem statement, dataset selection) |
 | 16 Aug | Lab 1 submitted (team, requirements FR_1–FR_6, tracker template) |
 | 20 Aug | Initial repository commit |
 | 12 Sep | Data audit: sparsity findings (see §3.3) that reshaped both use cases |
-| 18 Sep | Minor exam |
-| 25 Sep | Guest lecture: DeCompBench, AI-agent safety (Chhavi Yadav, CMU) |
-| 1 Oct | Instructor feedback: show **pipeline optimisation** (metrics, baseline, bottlenecks, strategy comparison; specifically sharding and vertical/horizontal fragmentation) |
+| 1 Oct | Optimisation study scoped: pipeline metrics, a baseline, bottlenecks, and strategy comparisons including sharding and vertical/horizontal fragmentation |
 | 9 Oct | Lab 4–5 submission commit (ingestion, synthetic data, analysis) |
 | 13 Oct | Person A's Spark ingestion/cleaning files added |
-| 15 Oct | Guest lecture: "The last mile of data engineering" and system complexity (Soham Sonawane, Stefan — Clarisights) |
 | 20 Oct | Person B's dbt warehouse added; branches unified into one modular package |
 | 21–22 Oct | Optimisation study; warehouse reconciled with the pipeline; "one evidence rule" fix (§6.2) |
 | 22–28 Oct | Person C's graph/discovery service (merged as PR #1 on 2 Nov) |
-| 23 Oct onward | Expert lectures: sketching algorithms (Himanshu Gupta, IBM); big data handling, MapReduce → lakehouse (Joydeep Banik Roy, Zeotap) |
 | 2 Nov | API, dashboard, end-to-end run, reorder-point fix, Airflow DAG, BigQuery sandbox run |
 | 3 Nov | Fresh-clone verification; explorer UX fixes; this handbook |
-| 12–17 Nov | Project presentations |
-
-### 2.3 Course context
-
-- **Instructor:** Romi Banerjee. Evaluation: quizzes 5%, lab assignments 10%, minor 20%, major 40%, project 20%, participation 5%. The project score is 50% group, 50% individual — each member must be able to defend their own part.
-- **Feedback that shaped the project (1 Oct):** this is a *data engineering* course, so demonstrate *pipeline* optimisation with measurable metrics, a baseline, bottleneck analysis and optimised-vs-baseline comparison across multiple strategies, including sharding and vertical/horizontal fragmentation. Kafka consumer lag was given as an example metric, but our pipeline is batch, so latency, throughput and peak memory are used instead.
-- **Make-up class (5 Sep) advice applied here:** understand the *behaviour* of your data (is it growing, static, are parts never visited?), choose static vs adaptive optimisation by extrapolating volume, and use proper in-text citations (IEEE/APA) that point to papers or documentation, not company websites.
 
 ---
 
@@ -277,7 +257,7 @@ Domain constants in the same file: `DELIVERED_STATUS = "delivered"`; `EXCLUDED_S
 - `LocalStorage` maps keys to directories; `MinioStorage` maps keys to objects in an S3-compatible bucket (`docker compose up -d minio`, console on :9001).
 - `get_storage(settings)` is the only factory the pipeline calls, so switching backends is a one-variable change (`ECOM_STORAGE_BACKEND=minio`). The key layout is identical in both (verified).
 - **Why both exist:** two of the team's spec documents said "MinIO is excluded, use the local filesystem", two others mandated MinIO. The adapter resolves the contradiction in code: both are supported, local is the default.
-- The interface is a **key–value store**: conceptually the same model as the key-value NoSQL databases in the syllabus.
+- The interface is a **key–value store**: conceptually a key-value store.
 
 ### 5.3 Ingestion (`src/ecom/ingestion/ingest.py`) — source → raw
 
@@ -501,7 +481,7 @@ Built in response to the 1 October feedback. Seven modules (~3,100 lines), 27 te
 
 ### 5.15 The Spark path (Person A)
 
-`src/ecom/spark/` (548 lines): `clean_pipeline.py` (`python -m ecom.spark.clean_pipeline <run-date>`), `cleaning_utils.py`, `validators.py` (quarantine instead of drop: invalid rows go to `storage/quarantine/...` with per-check flags), `quality_report.py`, `schema_contracts.py`, `zones.py`. PySpark is an optional dependency (`pip install -e '.[spark]'`, Java 17+); it is not installed in the main environment, so its 2 test modules are skipped. The pandas path is the one every downstream stage is verified against. See §6.1 and §7.10 for how to defend this.
+`src/ecom/spark/` (548 lines): `clean_pipeline.py` (`python -m ecom.spark.clean_pipeline <run-date>`), `cleaning_utils.py`, `validators.py` (quarantine instead of drop: invalid rows go to `storage/quarantine/...` with per-check flags), `quality_report.py`, `schema_contracts.py`, `zones.py`. PySpark is an optional dependency (`pip install -e '.[spark]'`, Java 17+); it is not installed in the main environment, so its 2 test modules are skipped. The pandas path is the one every downstream stage is verified against. See §6.1.
 
 ### 5.16 Command-line interface (`src/ecom/cli.py`)
 
@@ -520,7 +500,7 @@ Each entry: **the decision**, **why**, **what was rejected and why**, and **the 
 | Decision | Why | Rejected alternatives and why |
 |---|---|---|
 | **Batch, not streaming** | Olist is a historical export (2016–2018); nothing arrives continuously. Both use cases are daily decisions (what to recommend, what to restock). | **Kafka / Flink / Spark Streaming:** no stream to consume; consumer lag (the example metric in the feedback) has no meaning for a batch job. Latency, throughput and peak memory are measured instead. Extension path: a micro-batch ingest of new orders into the same raw zone. |
-| **pandas as the main engine, PySpark as an optional second path** | ~350k rows / 37 MB processed fit in memory many times over; the whole pipeline runs in ~5 s. Spark's JVM and session start-up alone take seconds. Transforms are pure DataFrame functions, so a Spark port changes only I/O. | **Spark-only:** costs more than it saves below a volume that does not fit one machine (the syllabus' "scale up vs scale out": scale up for this volume). **Hadoop MapReduce:** disk-based between map and reduce, far slower for an iterative small job. The Spark path exists (Person A) and is the documented scale-out route. |
+| **pandas as the main engine, PySpark as an optional second path** | ~350k rows / 37 MB processed fit in memory many times over; the whole pipeline runs in ~5 s. Spark's JVM and session start-up alone take seconds. Transforms are pure DataFrame functions, so a Spark port changes only I/O. | **Spark-only:** costs more than it saves below a volume that does not fit one machine (scale up, not out, at this volume). **Hadoop MapReduce:** disk-based between map and reduce, far slower for an iterative small job. The Spark path exists (Person A) and is the documented scale-out route. |
 | **Parquet for processed data** | Columnar, typed, compressed. Enables projection pushdown (measured 5.34× reading 2 of 12 columns) and makes vertical fragmentation unnecessary. | **CSV:** loses dtypes; re-inferring types is how silent bugs start. **JSON/XML:** row-oriented, verbose, no column pruning. |
 | **Raw CSV kept byte-identical** | Raw is *evidence*: hashes prove what was landed; the pipeline can always be replayed from raw. | Cleaning on ingest (would destroy the evidence and make re-processing impossible). |
 | **Local filesystem default, MinIO optional** | Spec documents disagreed; an adapter satisfies both. Local is zero-setup; MinIO demonstrates an S3-compatible object store with the same key layout. | **HDFS:** a cluster file system for a 126 MB dataset. **AWS S3:** account and cost; MinIO is API-compatible and local. |
@@ -529,7 +509,7 @@ Each entry: **the decision**, **why**, **what was rejected and why**, and **the 
 | **Star schema (Kimball), not a normalised (Inmon) EDW** | Analytical queries (revenue by month and category, pairs by product) want few joins; the four-step Kimball process (process → grain → dimensions → facts) was followed. | **Snowflake schema:** more joins for little saving at this size. **3NF warehouse:** right for an enterprise integration layer, wrong for a single-subject mart. |
 | **NetworkX in memory for the graph** | 4,881 nodes / 4,054 edges fit trivially in memory; lookups are dictionary (hash) accesses; deterministic and testable. | **Neo4j (graph DB):** a server, a query language and persistence for a graph that is rebuilt from scratch each run and fits in a few MB. Would make sense if the graph were large, persistent and updated incrementally. |
 | **No NoSQL document store** | The data is tabular and relational with clean keys; the use cases join and aggregate. | **MongoDB:** schema-less documents lose the referential integrity our gates check, and aggregations across documents are awkward; CAP trade-offs are irrelevant on one node. The storage interface itself is key–value (MinIO is an object/KV store). |
-| **No ML recommender** | Explainability and determinism; only 206 pairs have weight ≥ 2, too sparse to train on. | Collaborative filtering / embeddings: would hallucinate structure from one-order coincidences and could not be explained in a viva. |
+| **No ML recommender** | Explainability and determinism; only 206 pairs have weight ≥ 2, too sparse to train on. | Collaborative filtering / embeddings: would hallucinate structure from one-order coincidences and could not be explained. |
 | **FastAPI** | Typed request/response models (Pydantic), automatic validation and OpenAPI docs, fast to test with an in-process client. | **Flask:** no built-in typing/validation. **Streamlit:** a dashboard tool, not an API other clients can use. |
 | **Dashboard served by the API (HTML + D3), not Metabase** | One process, no JVM, no second server; the dashboard can only show what the API serves, so there is one source of truth. | **Metabase:** heavy (JVM), connects to the database directly (bypassing the API's rules), poor DuckDB support. **React app:** a Node toolchain for one page. |
 | **Airflow** | The tracker's fixed task IDs; DAG of dependencies, retries, scheduling, a UI, backfill control. | **cron:** no dependencies, retries or visibility. **Dagster/Prefect:** fine tools, but Airflow is the industry default and named in the design. |
@@ -577,298 +557,9 @@ Each entry: **the decision**, **why**, **what was rejected and why**, and **the 
 | Reconcile two independent implementations | SQL vs pandas agreeing pair-for-pair is evidence both are right; one implementation checked against itself proves nothing. |
 | Test empty-table blind spots with invariants | The BigQuery 0-row bug passed every not_null/relationship test; only an invariant (revenue preserved) caught it. |
 
-## 7. Syllabus mapping and viva preparation
+## 7. Requirements traceability and honest gaps
 
-The course syllabus (CSL4030 handout): *Introduction* (data sources, big data, structured/unstructured); *Data models and storage* (relational, NoSQL, normalised/denormalised, data cleaning, distributed storage, hashing, indexing); *Query processing* (SQL/NoSQL on big data, optimisation, ACID, design patterns, reliability/quality/provenance, distributed query processing); *Data warehousing* (OLAP, OLTP); *Streaming data analytics* (in-memory analytics, pipelines and dashboards, predictive analytics); plus lab topics (data collection, indexing, SQL, XML/JSON, NoSQL, wrangling, Hadoop/Spark/MapReduce).
-
-The instructor's style (from Quiz 1, the Minor paper and the distributed-query and OLTP exercises): identify keys and prove them with **closure**; test **normal forms**; write **two versions** of a relational-algebra query and say which is optimised and why; design a **key-generating function** and justify it for indexing/retrieval; design **fragments** (horizontal, vertical, derived) with predicates; choose **semi-joins vs joins**; reason about **cost** and **where data is shipped**. Expect the same moves applied to *our* tables. Her running examples repeatedly include a **restock rule** ("if copies ≤ 5, inform the supplier" in the first lecture; "requisition when stock falls below 5" in the OLTP exercise) — our inventory use case is that rule done with real velocity.
-
-Each subsection: **concepts taught → where they appear in the project → likely questions with model answers.**
-
-### 7.1 Introduction: data sources, big data, structured vs unstructured
-
-**In the project:** structured CSV exports from an OLTP marketplace; semi-structured JSON (manifests, quality reports, API responses, node-link graph); the only unstructured content (review text) is unused.
-
-- **Q: Is this big data?** No, and we say so. ~126 MB, ~350k rows; it fails *Volume* and *Velocity*; *Variety* is low (tabular). *Veracity* is where it is interesting (sparsity, missing quantities, untranslated categories, cancelled tail). The project demonstrates the engineering patterns that transfer to big data — contracts, idempotent zones, partitioning, columnar formats, orchestration, verified optimisation — and the scaling study extrapolates to 8× to show where strategy choices start to matter (DuckDB's sub-linear k = 0.74).
-- **Q: Structured, semi-structured or unstructured?** Source: structured (fixed CSV schemas). Our own metadata (manifests, quality reports, lineage) and API outputs: semi-structured JSON. Reviews text: unstructured, out of scope.
-
-### 7.2 Relational model: keys, constraints, ER, Codd's rules
-
-**In the project:** declared keys and foreign keys in `contracts.py`; gates enforce entity integrity (no NULL keys), key constraints (uniqueness) and referential integrity (FK checks); dbt `unique`/`not_null`/`relationships` tests do the same in the warehouse.
-
-| Table | Primary key | Kind |
-|---|---|---|
-| orders | order_id | natural (anonymised hex) |
-| order_items | (order_id, order_item_id) | composite; order_item_id is a sequence within the order |
-| order_lines (processed) | (order_id, product_id, seller_id) | composite, derived by aggregation |
-| order_products | (order_id, product_id) | composite |
-| synthetic_inventory | (seller_id, product_id) | composite natural key |
-| product_cooccurrence / fct_product_cooccurrence | (product_a, product_b) with product_a < product_b | composite, canonically ordered |
-| fct_order_items | (order_id, order_item_id) | grain key (tested unique) |
-
-- **Q: Superkeys and the primary key of the inventory table, with closure.** FDs: {seller_id, product_id} → {units_sold, first_sale_date, active_days, daily_sales_rate, evidence, current_quantity, reorder_point, last_restock_date, days_of_inventory, status}; {seller_id} → {lead_time_days}. Closure {seller_id, product_id}⁺ = all attributes → superkey; neither {seller_id}⁺ = {seller_id, lead_time_days} nor {product_id}⁺ = {product_id} is a superkey → {seller_id, product_id} is minimal → candidate and primary key. Any superset (e.g. adding status) is a superkey but not minimal.
-- **Q: Natural or surrogate keys?** Natural: Olist's IDs already exist in the business data and are unique (we verify). A surrogate `row_id` appears only in the benchmark's vertical fragments, where it is needed to rejoin the hot and cold halves.
-- **Q: Can a foreign key be NULL here?** Our gates require `order_items.order_id/product_id/seller_id` non-null, so no item exists without its order, product and seller. A nullable FK would mean an optional relationship (e.g. a product with no category → we use an explicit `unknown` bucket instead of NULL).
-- **Q: Design a function to generate a key, and justify it for indexing and retrieval.** The co-occurrence pair key is (min(p, q), max(p, q)): order-independent (one row per unordered pair), self-pairs impossible, and sorting by it clusters all pairs of a product_a together (range scans). The shard function blake2b(seller_id) mod 64: uniform spread (hash), stable across processes, O(1) location of any seller's file.
-- **Codd's rule 8/9 (physical and logical data independence):** the storage adapter lets the physical location change (disk ↔ MinIO) without changing any transform; dbt staging views insulate marts from source column renames (e.g. fixing `product_name_lenght`). **Rule 11 (distribution independence):** the API's clients never see whether data came from local files or an object store.
-
-### 7.3 Normalisation, denormalisation and anomalies
-
-- **Source tables** are close to 3NF: one entity per table, keys clean, category translation separated. (Strictly, in `order_items` the `shipping_limit_date` appears to depend on (order_id, seller_id) rather than the full key, and in `customers` the zip prefix partly determines the state — small departures, irrelevant to our use.)
-- **Deliberate denormalisation in our outputs (OLAP, not OLTP):**
-  - `fct_order_items` carries `customer_id`, `order_date`, `order_status` from orders: order_id → customer_id is a **partial dependency** on part of the composite key (order_id, order_item_id) → **not 2NF**. This is the standard star-schema choice (these are degenerate dimensions on the fact) to avoid a join in every query. Anomalies (update anomalies) do not arise because the warehouse is rebuilt from source, never updated in place (*non-volatile*).
-  - `synthetic_inventory`: seller_id → lead_time_days is a partial dependency → not 2NF; lead time is repeated for every product of a seller. Acceptable for a read-only analytical table; normalising would split a `seller_lead_times` table and add a join to every restock query.
-  - Processed `products` and `dim_products` include `product_category_english`: product_category_name → english is a **transitive dependency** → 2NF but not 3NF; a snowflake schema would move it to a category dimension.
-- **Q: Why not keep everything in 3NF?** OLTP needs 3NF to make inserts/updates safe; OLAP is read-mostly and rebuilt in batch, so fewer joins beats anomaly protection. The source layer stays normalised; only the marts denormalise.
-- **Data anomalies in the course sense** (dirty/unrepeatable/phantom reads, lost update) concern concurrent transactions — see §7.9.
-
-### 7.4 Data cleaning, quality, reliability and provenance
-
-**In the project (this is where the project is strongest):**
-
-- **Cleaning rules** (§5.4): types, NULL handling with explicit buckets, LEFT-join fallbacks, status flags instead of deletion, aggregation instead of deduplication.
-- **Quality gates** that raise, run before writing; a declared warning for a known quirk; a revenue invariant; a quality report per run.
-- **Provenance / lineage:** raw manifest with per-file SHA-256 and row counts; synthetic inventory manifest (seed, parameters, hash); BigQuery provenance columns (`_run_date`, `_source_hash`, `_loaded_at`) and a load-lineage JSON; dbt's lineage graph; Airflow run history.
-- **Reliability:** idempotent re-runs (identical hashes); gates protect the last good layer; Airflow retries and crash recovery verified; reconciliation of two independent implementations.
-- **Q: How do you know your numbers are right?** Three independent agreements: pandas co-occurrence = dbt SQL co-occurrence (4,054 pairs, 0 differences) on two engines; revenue invariant across cleaning and the warehouse; an independent script recomputing from the original CSVs. Plus the optimisation harness compares every faster strategy to the baseline output.
-- **Q: Give an example where data quality checks caught a real bug.** (1) The BigQuery fact table built with 0 rows; all not_null/relationship tests passed; the revenue invariant failed. (2) Arrow's default CSV reader turned 2,965 missing delivery dates into empty strings that a not-null check would have accepted. (3) A fast row counter overcounted reviews by 5,495 rows. (4) The inventory's rounding made 85% of Urgent rows artefacts.
-- **Q: What is data drift and does it apply?** Changes in the input distribution over time. Olist is static, but the raw manifest's `row_drift` field compares row counts with the reference download, so a changed source is visible.
-
-### 7.5 Hashing
-
-**Taught:** hash functions h(K) = K mod M, folding, collisions (open addressing, chaining, multiple hashing), load factor 0.7–0.9, external hashing with buckets, static vs dynamic hashing (extendible hashing with global/local depth, linear hashing), order-preserving hashes.
-
-**In the project:**
-- **Hash sharding** of the fact table: `blake2b(seller_id) mod n` — static hashing into n buckets (files). The shard sweep (n = 1…4,096) is literally choosing M: more buckets → each lookup reads a smaller file (fewer "block accesses"), but storage overhead grows (+79.7% at 4,096 — the small-file analogue of a sparse hash table with many unused/near-empty buckets).
-- **Static hashing's drawback** applies: changing n requires re-hashing every row (the slides' reorganisation cost). Extendible or **consistent hashing** would let shards split locally; we chose a fixed 64 because the data does not grow.
-- **Hash join** (J4) in the co-occurrence benchmark and inside DuckDB; Python dicts and pandas indexes are in-memory hash tables (the graph's adjacency lists, `set_index` lookups in the API).
-- **Cryptographic hashing** (SHA-256) for integrity/provenance, a different purpose: collision resistance, not address computation.
-- **Q: Why blake2b and not Python's hash()?** `hash()` of a string is salted per process (PYTHONHASHSEED), so a layout written by one process could not be read by another. A stable hash is a requirement for persistent hash partitioning.
-- **Q: Why hash on seller_id rather than range on seller state?** Hashing spreads keys uniformly; state is skewed (SP = 68.8% of inventory rows), which would create one giant fragment (the slides' "collisions" problem at fragment level).
-- **Q: Could you have used extendible hashing?** Yes, if sellers kept arriving: splitting only the overflowing bucket avoids rehashing everything. Olist is a closed snapshot, so static hashing with a measured n is simpler and sufficient.
-
-### 7.6 Indexing
-
-**Taught:** primary (sparse, on the ordering key), clustering (on a non-key ordering field), secondary (dense), multilevel and B+-tree indexes; dense vs sparse.
-
-**In the project (we do not build B-trees by hand; the engines provide index-like structures):**
-- **Partition directories** (horizontal layout, BigQuery partitions) behave like a **primary/clustering index** on the partition key: the engine reads only the directories that can match (partition pruning).
-- **BigQuery clustering** on (product_id, seller_id) and (product_a, product_b) is a **clustering index**: rows sorted within partitions, block metadata used to skip blocks.
-- **Parquet row-group statistics** (min/max per column chunk) act as a **sparse index** (zone maps) for predicate skipping; DuckDB uses the same idea.
-- **In-memory hash indexes** in the API (`set_index`, NetworkX adjacency dicts) give O(1) lookups by product or seller.
-- **Q: FR_4 promised indexing — where is it?** Partitioning, clustering and column statistics are the index structures of columnar analytical engines; we measured their effect (pruning up to 98.6% fewer bytes; 79% on BigQuery). We did not hand-build B+-trees because analytical scans over Parquet/BigQuery do not use them; for an OLTP lookup service (e.g. `seller_id = X` on a row store) a secondary B+-tree index would be the choice.
-- **Q: Dense or sparse?** Partition pruning and zone maps are sparse (one entry per file/row group); the API's hash lookups are dense (one entry per key).
-
-### 7.7 Query processing and optimisation
-
-**Taught:** query trees/graphs, relational-algebra translation, heuristic optimisation (push SELECT/PROJECT down, most restrictive first, replace × + σ with ⋈), selectivity and cost estimation (catalog statistics, histograms), join algorithms J1 nested-loop, J2 single-loop (index), J3 sort-merge, J4 partition-hash (and hybrid hash), external sorting, aggregation via sorting/hashing, materialised vs pipelined evaluation, semantic query optimisation, compiled vs interpreted queries.
-
-**In the project:**
-
-| Concept | Where | Measured |
-|---|---|---|
-| J1 nested loop | `cooccur_nested_loop` (Python loop per basket) | baseline |
-| J3 sort-merge | `cooccur_sort_merge` | 0.60× (rejected: per-basket loop not vectorised) |
-| J4 hash join | `cooccur_hash_join` (pandas self-merge on order_id) | 1.40× |
-| Cost-based optimiser | `cooccur_duckdb` (SQL; DuckDB picks plan and parallelism) | 1.46× at 1×, fastest at 8×, k = 0.74 |
-| Linear-algebra formulation | `cooccur_sparse_matrix`: pairs = BᵀB of the basket×product incidence matrix | 2.00× at 1× |
-| Push PROJECT down | Parquet projection pushdown (2 of 12 columns) | 5.34× |
-| Push SELECT down / selectivity | Partition pruning; selectivity sweep | 5.29× at 5% selectivity, crossover ≈53% |
-| Materialised vs pipelined | `materialisation_study` | materialising costs ~625%, kept for restartability |
-| Amdahl's law | fast reader: 11.9× component → 1.27× stage | |
-| Semantic constraints | `a < b` in the self-join: a schema-level constraint that halves the output and removes self-pairs | |
-
-- **Q: Write the co-occurrence query in relational algebra, two ways, and say which is optimised.**
-  Let M = order_products (order_id, product_id) and O = orders.
-  *Version 1 (naive):* σ_{M1.order_id = M2.order_id ∧ M1.product_id < M2.product_id ∧ O.order_id = M1.order_id ∧ O.status ∉ {canceled, unavailable}} (M1 × M2 × O), then γ_{a,b; COUNT} — a Cartesian product of 102k × 102k × 99k tuples before any selection.
-  *Version 2 (optimised):* C = π_{order_id}(σ_{status ∉ {canceled, unavailable}}(O)); M′ = M ⋉ C (semi-join keeps only countable memberships); then γ_{M1.product_id, M2.product_id; COUNT(*)}(M′ ⋈_{order_id, M1.product_id < M2.product_id} M′). Selections and projections pushed below the join, × + σ replaced by ⋈, the restrictive status filter applied first, and the theta condition `<` inside the join halves the output. This is exactly `int_order_products` + `fct_product_cooccurrence` in dbt.
-- **Q: Which join algorithm is best and why does it change with size?** At 1× the sparse matrix wins (vectorised C code, one pass); at 8× DuckDB wins because its cost-based plan parallelises (fitted k = 0.74). The naive nested loop is not catastrophic because 96.7% of baskets have one product, so the quadratic per-basket term rarely fires — the data's shape matters as much as the algorithm's complexity class.
-- **Q: Your pipeline materialises every stage — isn't pipelining cheaper?** Yes, measured ~625% overhead on a cheap three-stage sequence. We pay it deliberately: a failed run restarts from the last good stage, the gates inspect each stage's output, and every intermediate is auditable. The overhead is fixed and amortises as stages get heavier.
-- **Q: Where does selectivity estimation appear?** The selectivity sweep measures, rather than estimates, the point (~53% of rows) where pruning stops paying — the same trade-off a cost-based optimiser estimates from catalog statistics (selection cardinality s = sl × r).
-- **Q: Heuristic vs cost-based in your project?** Our hand-written transforms apply heuristics (filter early, project early, semi-join before join); DuckDB and BigQuery apply cost-based optimisation to the SQL; the benchmark is an *empirical* cost model (measure each plan).
-
-### 7.8 Distributed query processing and fragmentation
-
-**Taught:** query decomposition → data localisation → global optimisation → local optimisation; primary horizontal fragmentation (PHF), vertical fragmentation (VF), derived horizontal fragmentation (DHF), hybrid; reduction rules (drop fragments whose predicate contradicts the query; drop useless vertical fragments); semi-join reducers; ship-whole vs fetch-as-needed; total time vs response time; communication cost; static vs dynamic vs hybrid optimisation; adaptive query processing.
-
-**In the project:**
-- **PHF:** `write_horizontal` partitions the fact table by `order_month` (σ_{month = m}(F) for each month). The **reduction rule for PHF with selection** is partition pruning: a query for two months touches 2 of 19 fragments (96.5% fewer bytes, 3.64×).
-- **VF:** `write_vertical` splits hot columns (keys, price) from cold ones, each with `row_id`. The **reduction rule for VF** (a fragment is useless if it holds none of the projected attributes) is what Parquet's column pruning already does inside one file — which is why VF gave no reliable gain and a query spanning both fragments paid a 40× rejoin. Rejected.
-- **Hash fragmentation:** `write_sharded` by blake2b(seller_id) — a single-seller lookup reads 1 of 64 fragments (18.7×).
-- **DHF analogue:** fragmenting `synthetic_inventory` by the seller's state (Inventory ⋉ σ_{state = s}(Sellers)), like the bank exercise's sectors. Rejected because of skew (SP = 68.8% of rows). Hash sharding on the seller key gives the same "one seller → one fragment" locality without skew.
-- **Semi-join:** `select_countable_orders` and dbt's `int_order_products` reduce `order_products` by the set of countable order IDs before the expensive self-join — the semi-join reducer idea (ship/keep only the join keys that can match).
-- **Ship data vs ship the operator:** the pandas pipeline *ships data* to the computation (reads files into Python); dbt on BigQuery *ships the operator* (SQL runs where the data lives — ELT). Only the 37 MB processed layer crosses the network, once, via a load job.
-- **Static vs adaptive (the make-up class theme):** our layout choices are static, justified by measurement on a closed dataset. The scaling study is the extrapolation the instructor described: at 1× the sparse-matrix join wins, at 8× DuckDB wins, so an adaptive rule would pick the strategy by input size ("if fewer than N rows do X, else Y") — not implemented, but the crossover is measured.
-- **Q: Your data is on one machine — why study distribution?** The instructor asked for sharding and fragmentation explicitly; the study measures their trade-offs (bytes read, per-file overhead, storage, skew) on real data at controlled volumes, which is what decides fragmentation in a distributed system. BigQuery is genuinely distributed and uses the partitioning and clustering we chose.
-
-### 7.9 Transactions, OLTP, ACID and recovery
-
-**Taught:** ACID; anomalies (dirty read, unrepeatable read, lost update, phantom read/write, lost summary); serialisability; 2PL (basic, strict, rigorous, conservative), deadlock (wait-die/wound-wait, WFG), timestamp ordering, Thomas' write rule, optimistic CC, MVCC and snapshot isolation; isolation levels; 2PC/3PC, Paxos; UNDO/REDO recovery with checkpoints; deferred vs immediate update.
-
-**In the project — an honest mapping (we are a single-writer batch system, so most concurrency control does not apply):**
-
-| ACID property | How the pipeline provides (or does not provide) it |
-|---|---|
-| Atomicity | Quality gates run on the whole in-memory result before any write, so a failed run writes nothing. **Gap:** the seven processed files are then written one after another without temp-file-and-rename, so a crash *during* writing could leave a mix of old and new tables. Fix: write to a versioned directory and switch a pointer atomically. BigQuery load jobs are atomic per table (`WRITE_TRUNCATE`). |
-| Consistency | Contracts, gates (keys, FKs, not-null, invariants), dbt tests and reconciliation define and enforce the valid states. |
-| Isolation | One writer at a time (`max_active_runs=1`), so lost updates cannot occur. DuckDB takes a file lock (one writer). The API loads a snapshot into memory at start-up, so readers never see a half-written layer while the pipeline runs — conceptually **snapshot isolation / MVCC** (readers read an old consistent version; the writer produces a new one). **Gap:** restarting the API *during* a pipeline write could read a mixed layer (a dirty-read analogue). |
-| Durability | Parquet on disk or in the object store; raw zone byte-identical with hashes; BigQuery storage. |
-
-- **Recovery = REDO from a durable log.** The raw zone plus manifest act like a redo log: any later layer can be recomputed deterministically (same hashes). Airflow retries are redo of a failed task; crash recovery was tested (§5.14). There is no UNDO because nothing is updated in place.
-- **Q: Which anomaly would occur if two DAG runs overlapped?** A **lost update**: both write `processed/*.parquet`; the later writer's files overwrite the earlier's, possibly table by table, leaving an inconsistent mix. `max_active_runs=1` serialises the runs.
-- **Q: Where would 2PC matter?** If one logical run had to commit both the DuckDB warehouse and the BigQuery warehouse "together". We avoid a distributed commit by making each target independently rebuildable and reconciling both against the same processed layer.
-- **Q: Is Olist itself OLTP?** Yes: the source is an export of the marketplace's operational (OLTP) database — orders, items, payments written transactionally. Our platform is the OLAP side built from it.
-
-### 7.10 Big data processing and NoSQL
-
-**Taught:** 3 Vs (+ veracity, value, variability), scale-up vs scale-out, Hadoop (HDFS, YARN, MapReduce), Spark (DAG scheduler, stages, shuffle, partial aggregation before shuffle), Kafka/Flink, NoSQL models (key-value, document, wide-column, graph), CAP theorem, eventual consistency, polyglot persistence.
-
-**In the project:**
-- **Scale-up chosen, scale-out prepared:** one machine; pure transforms that port to Spark; a Spark path exists; BigQuery is a scale-out engine (Dremel) we actually ran.
-- **MapReduce view of co-occurrence:** *map* each basket to its pairs ((a, b), 1); *shuffle* by pair; *reduce* by summing. Spark would add a *combiner* (partial sums per partition before the shuffle) — exactly the "partial sums cut network traffic" slide. Our sparse BᵀB is the same computation as one matrix product.
-- **NoSQL models present:** key-value (the storage interface, MinIO object store), graph (NetworkX in memory), document-like JSON (manifests, API). No NoSQL *database* is used.
-- **Q: Why not a graph database (Neo4j) for a graph problem?** The graph is small (4,881 nodes, 4,054 edges), rebuilt each run from SQL-verifiable pairs, and read-only; NetworkX in memory answers neighbour queries in microseconds. A graph DB pays for persistence, concurrency and a query language we do not need. It becomes right when the graph is large, persistent and updated incrementally (e.g. live orders).
-- **Q: Where does CAP apply?** Not on a single node (no partitions). BigQuery and MinIO are the distributed parts; we read them in batch after loads complete, so consistency is not at risk.
-- **Q: Why not Spark if the course teaches it?** It is implemented (Person A's path) but not the default. At this size Spark's fixed start-up cost exceeds the whole pandas run; the measured materialisation and scaling results show fixed overhead dominates small data. A proper demonstration would time both paths and report the volume at which Spark breaks even (future work).
-
-### 7.11 Data warehousing and OLAP
-
-**Taught:** Inmon's definition (subject-oriented, integrated, time-variant, non-volatile); OLTP vs OLAP; three-tier architecture; ETL vs ELT; EDW / ODS / data marts; lakes and lakehouses; Inmon vs Kimball; dimensional modelling (process, grain, dimensions, facts); star / snowflake / galaxy; slowly changing dimensions (Types 0–3, 6); Data Vault; OLAP cube operations (roll-up, drill-down, slice, dice, pivot, drill-through); MOLAP/ROLAP/HOLAP; cloud warehouses (BigQuery = Dremel on Colossus); DuckDB as an OLAP engine.
-
-**In the project:**
-- **Inmon properties:** subject-oriented (sales, products, sellers), integrated (one category translation, one status rule, consistent types), time-variant (order dates, date dimension, monthly partitions), non-volatile (rebuilt, never updated in place).
-- **ETL and ELT both:** Python ingestion and cleaning is ETL (transform before the warehouse); dbt on BigQuery is ELT (load first, transform inside the warehouse with SQL).
-- **Kimball four steps:** business process = order line sales; grain = one item of one order; dimensions = product, customer, seller, date; facts = price, freight, item total.
-- **Star schema** around `fct_order_items`; a second fact `fct_product_cooccurrence` shares the product dimension (fact constellation / galaxy).
-- **SCD:** Type 1 (overwrite on rebuild); justified by a static snapshot.
-- **Warehouse type:** a subject-oriented **data mart** (Kimball bottom-up), not an enterprise warehouse.
-- **OLAP operations on the dashboard:** *roll-up* (items → monthly orders chart; seller-products → status totals), *drill-down* (category → its products → one product → its sellers), *slice* (status = Urgent), *dice* (status = Urgent ∧ category = X ∧ seller = Y via the filters), *drill-through* (a KPI → the underlying restock rows).
-- **ROLAP:** queries run on relational tables (DuckDB/BigQuery) rather than a pre-built cube.
-- **Real-world parallel:** the slides' Walmart warehouse "driving replenishment and supplier collaboration" is our inventory use case.
-- **Q: Why a star schema and not a snowflake?** Fewer joins and faster, simpler queries for the dashboard; the only hierarchy (product → category) is shallow, so normalising it into a separate table saves almost nothing.
-- **Q: What is the grain of your fact table and why that one?** One row per (order_id, order_item_id) — the finest grain the source provides; any coarser grain (order lines, orders) can be derived from it, but not the reverse.
-- **Q: How would you handle a seller moving city?** SCD Type 2 on `dim_sellers`: add `valid_from`, `valid_to`, `is_current`, and join facts by the version valid at the order date.
-
-### 7.12 Streaming data analytics: sketches, pipelines and dashboards, lakehouse
-
-This unit was taught mostly through expert and guest lectures (October–November): **sketching algorithms** (IBM expert lecture, Himanshu Gupta, 23 Oct and following), **big data handling, from MapReduce to lakehouse** (Joydeep Banik Roy, Zeotap), and **"The last mile of data engineering"** (Soham Sonawane and Stefan, Clarisights, 15 Oct). See §7.16 for what each speaker said that bears directly on our choices.
-
-**Sketches (streaming algorithms) — taught.** A sketch is a compact probabilistic summary of a huge stream, updated per item in constant time, answering a query with a *bounded, configurable error*:
-
-| Sketch | Answers | Key facts from the lecture |
-|---|---|---|
-| Bloom filter | "Have I seen this item?" | k hash functions set k bits; a 0 bit means *definitely not seen*, all 1s means *possibly seen* (false positives only). ~9.6 bits/item and ~7 hash functions for 1% false positives; error vs number of hash functions is U-shaped. Cannot delete. |
-| Counting Bloom filter | Membership with deletes | Counters instead of bits (e.g. 4-bit); supports delete; ~4× space; counter overflow raises false positives. |
-| Count-Min Sketch (CMS) | Frequency of an item | d hash rows × w counters; increment one counter per row; estimate = **minimum** across rows. Never underestimates; error ≤ ε·N (N = stream length). 0.1% error ≈ 2.7k width × 5 rows ≈ 53 KB vs 2.8 GB exact. Good for heavy hitters, poor for rare items. |
-| HyperLogLog (HLL) | Number of distinct items | ~16 KB for ±2.4% (99.7% of the time) vs ~16 GB exact; 64 KB → 1.2%. |
-| KLL | Quantiles (median, p95) | Distribution summaries. |
-| Theta sketch | Set operations (union, intersection, difference) on distinct counts | |
-| Misra–Gries / top-k | Heavy hitters | |
-
-**Mergeability** is the defining property: sketches computed separately (per plant, per partition, per daily run) with the *same configuration* merge into one sketch with the *same* error and size. Distinct counts themselves cannot be added (items overlap); averages of partition averages are wrong when partitions differ in size; medians of partitions do not give the global median — merge sketches instead.
-
-**Mapping to our project:**
-- **Count-Min Sketch = streaming co-occurrence.** If orders arrived as a stream, each basket's pairs would update a CMS; the strongest pairs (heavy hitters) are exactly where CMS is accurate, and the weight-1 tail (94.9% of pairs) is exactly where it is not — which matches what we display: the global view only shows pairs with weight ≥ 2.
-- **HLL** for distinct customers/products per day, merged across daily runs instead of recomputed.
-- **KLL** for the velocity distribution (our median 0.0080 units/day is a quantile).
-- **Bloom filter** in front of the API's product lookups or as a "pair already seen?" check in an incremental update.
-- **Q: Why did you not use sketches?** Because exact is cheap at our size: 4,054 pairs and 33,787 inventory rows fit in kilobytes to megabytes; sketches trade accuracy for memory only when exact state does not fit. We would switch to CMS/HLL when the data became a stream that must be summarised in fixed memory, and mergeability is what would let daily incremental runs replace full rebuilds.
-
-**Big data handling → lakehouse — taught (Joydeep).** Spark is a query engine with an in-memory runtime (RDDs: lazy, partitioned; DataFrame/SQL compile to one optimised plan; narrow vs wide transformations; a shuffle starts a new stage); file formats (CSV splittable only when uncompressed and one record per line; Parquet columnar; Avro row-oriented with schema evolution); partitioning "by country" only if resulting file sizes stay reasonable (small-file problem: thousands of executors on 5 MB files); join strategies (broadcast hash join when one side is small, ~10 MB default; sort-merge for large-to-large; shuffle hash); skew fixes (adaptive query execution, **salting**, hot-key isolation, bucketing); query planning (parsed → analysed → optimised logical plan → candidate physical plans → cost model → code generation; AQE revises at runtime). The lakehouse motivation: *"Yesterday's records changed; we must replace data while analysts query it; the job fails halfway. Which files are the current table? What does a reader see? Can we retry without duplicates? Can we reproduce yesterday's answer?"* → transaction logs, snapshots, versioning (Delta Lake, Iceberg, Hudi).
-
-**Mapping to our project:**
-- Our measured **small-file penalty** (shards to 4,096: +79.7% storage; partitioning slower on full scans) is the "partition by country only if file sizes stay reasonable" rule, measured.
-- **Skew:** SP holds 68.8% of inventory rows; we avoided it by hashing on seller_id (the uniform-spread idea behind salting) instead of fragmenting by state.
-- **Join strategy:** our dimensions are tiny (3,095 sellers, 32,951 products) — the broadcast-hash-join case; DuckDB/BigQuery choose that themselves.
-- **The lakehouse questions are our known gap:** the processed layer is a directory of Parquet files rewritten table by table, so a crash mid-write could mix versions and a reader during the write could see a partial update (§7.9). A table format with a transaction log (Delta/Iceberg) — or, minimally, writing to a versioned directory and switching a pointer — answers all four questions. This is first in our future work.
-
-**Pipelines and dashboards.** The Airflow DAG (dependencies, parallel branches, retries, timeouts, crash recovery, idempotent tasks, gates between stages) and the API-served dashboard (KPIs, trend, drill-down, filters; reads only through the API). The 15 Oct guest lecture's architecture — "compiler → orchestrator (brain) → job processor (muscle) → DuckDB" — is the same split as ours: Airflow decides what runs; the pipeline's own processes do the work.
-
-**In-memory analytics.** The API holds a snapshot of the inventory table and the graph in memory (lookups in microseconds, requests in milliseconds); DuckDB is an in-process columnar engine; NetworkX is an in-memory graph.
-
-**Predictive analytics.** Deliberately no ML. The restock rule is a naive forecast: days of inventory = stock ÷ constant daily rate (no seasonality — stated limitation). Extension: a moving-average or seasonal rate.
-
-**Streaming.** Not applicable to a historical export. Extension path: order events on a log (Kafka) → micro-batches into the raw zone → incremental pair counts (CMS or exact) and incremental velocity; both use cases are naturally incremental.
-
-### 7.13 Software engineering: Agile, Essence, tracker, standards
-
-- **Agile/Scrum:** sprint plan of 9 sprints and 43 tasks (`reports/sprint_plan.*`); weekly mentor reporting; the project tracker (Google Sheets) with FR/NFR codes, modules, coding standards (19/19 rules implemented in `docs/CODING_STANDARDS.md`).
-- **Essence (SEMAT kernel):** seven alphas (Opportunity, Stakeholders, Requirements, Software System, Work, Team, Way of Working). The Requirements alpha was recorded at *Bounded*; reconciling the contradictory spec documents (MinIO vs local, Spark vs pandas) is what advances it to *Coherent*; the working system with reconciled outputs supports *Acceptable*.
-- **Contracts as interfaces between team members** (`docs/contracts.md`): each owner fills their contract before downstream work starts.
-
-### 7.14 Rapid-fire "why not X?" (one-line answers)
-
-| Why not… | Answer |
-|---|---|
-| Kafka/streaming? | Historical batch data; no stream; latency/throughput/memory are the right metrics. |
-| Spark by default? | Start-up cost exceeds the whole job at 37 MB; transforms are Spark-portable; a Spark path exists. |
-| Hadoop/HDFS? | A cluster file system for 126 MB; MinIO gives the object-store pattern locally. |
-| CSV everywhere? | No types, no column pruning; Parquet measured 5.34× on projection. |
-| JSON/XML ingestion (FR_1)? | The chosen dataset is CSV; contracts and ingestion are format-agnostic at the byte level (honest gap, §8). |
-| MongoDB? | Relational data with keys and joins; integrity gates matter; CAP irrelevant on one node. |
-| Neo4j? | Small, rebuilt, read-only graph; in-memory NetworkX is faster and simpler. |
-| PostgreSQL? | Row-store OLTP; DuckDB/BigQuery are columnar OLAP. |
-| Metabase? | JVM, bypasses the API, poor DuckDB support; one-process HTML dashboard instead. |
-| ML recommender? | 94.9% of pairs are single coincidences; explainability is a requirement. |
-| Jaccard/lift ranking? | Overturned by the parameter study (0/50 overlap; normalisation worse without a support floor). |
-| Delivered-only co-occurrence? | Drops 32 real in-flight baskets to remove 4 failed ones. |
-| Random stock? | Gives 0.0% Urgent: the rule says nothing. |
-| Vertical fragmentation? | Parquet already prunes columns; spanning the split costs 40×. |
-| Partitioning the processed layer? | Slower above ~53% selectivity; our queries scan most rows. |
-| Fragment by seller state? | SP = 68.8% of rows: badly skewed. |
-| 4,096 shards (fastest)? | +79.7% storage for 25% more speed than 64; budget-constrained choice. |
-| DATE partitioning in BigQuery? | Sandbox 60-day expiry emptied the table; integer range keeps pruning without expiry. |
-| SCD Type 2? | Static snapshot; nothing changes. |
-| Authentication on the API? | Read-only, bound to localhost by default; would be required before hosting. |
-| Pipelining instead of materialising? | Restartability and inspectable gates are worth ~625% on cheap stages. |
-| Retries > 1 in Airflow? | A failed quality gate fails identically every time; more retries only delay the alert. |
-| Sketches (CMS, HLL, Bloom)? | Exact state is kilobytes at our size; sketches are for streams that do not fit in memory (CMS would count streaming pairs). |
-| Delta Lake / Iceberg? | The right fix for our non-atomic publication gap; not adopted yet (future work #1); a versioned directory + pointer switch is the minimal version. |
-| Kubernetes / a cluster? | "If it fits one server, it isn't big data" (guest lecture, 15 Oct); every added component is a new way to fail. |
-| Incremental processing? | A full rebuild takes ~30 s; incremental runs (and mergeable sketches) become worthwhile when rebuilds stop being cheap. |
-
-### 7.15 Numbers the examiner may ask you to recall
-
-Orders 99,441 · items 112,650 · order lines 102,425 · products 32,951 · sellers 3,095 · customers 99,441 (96,096 people) · window 2017-02-01→2018-08-31 (577 days) · multi-product share 3.29% · pairs 4,054 (94.9% weight 1, 206 with weight ≥ 2, max 34) · graph 4,881 products (14.8%), 1,652 components, largest 398 · delivered revenue in window R$ 13,069,228.77 · all-item price total R$ 13,591,643.70 · median velocity 0.0080 units/day over active days (0.0017 over the full window) · inventory 33,787 rows: 206 Urgent / 382 Monitor / 8,363 Healthy / 24,836 Insufficient · Urgent sell 5.7× faster · baseline 5.17 s · fast reader 1.27× stage, 11.9× component · crossover ≈53% · 64 shards 18.7× at +5% storage · materialisation ~625% · DuckDB k = 0.74 · dbt 14 models + 36 tests = 50/50 · BigQuery pruning 79% fewer bytes · tests 161.
-
-### 7.16 What the guest and expert speakers said, and how it applies to us
-
-The instructor invited industry speakers precisely to show "how data engineering is in the industry". Several of their points are direct, citable support for our design choices; quote them in the viva.
-
-**Soham Sonawane (Clarisights), "The last mile of data engineering" (15 Oct).**
-
-| His point | Our project |
-|---|---|
-| "If the number on screen is wrong, nobody cares which layer broke. It's a data engineering failure." | Reconciliation across pandas, DuckDB and BigQuery; revenue invariant; API overview reuses the analysis functions so it cannot disagree with `profile.json`. |
-| One product, two databases: OLTP (Postgres, rows, many small writes) vs OLAP (DuckDB, columns, big scans). "Picking one database for both jobs is the most common mistake." | Olist's source is OLTP; we build the OLAP side on DuckDB/BigQuery (columnar). |
-| "Every boundary (disk, network, language) is a place where types get lost": a DATE through Arrow into JavaScript became a number. Keep the real type end to end; format only at the last step. | Contracts and Parquet keep types; the API returns ISO dates; the dashboard formats months in UTC at the last step so they do not shift. |
-| Sync is a log: "the log is the source of truth; the tables are a view of it." A manual SQL fix that skipped the log was never seen by new clients. | Our raw zone + SHA-256 manifest is the durable record; every downstream layer is rebuilt from it; nothing is ever edited in place. |
-| Where a filter sits changes the answer (WHERE before GROUP BY vs HAVING after): "both are valid questions; the bug is answering one when the user asked the other." | Our "one evidence rule": co-occurrence counts placed orders, revenue counts delivered orders — two valid questions, documented separately. Before the fix, three parts of the project answered different questions and disagreed by 36 pairs. |
-| Time is the hardest dimension: every question has a date in it; wrong answers look believable; decide week start and whose midnight, and write it down. | Named analysis window (2017-02-01 to 2018-08-31) with written reasons; one date dimension; UTC formatting in the dashboard. |
-| Lineage: "where did this number come from?"; declarative pipelines; orchestrator (brain) vs job processor (muscle); incremental reruns skip finished pieces. | Manifests, quality reports, BigQuery provenance columns, dbt lineage; Airflow decides, pipeline processes do the work. **Gap:** we rebuild fully every run (cheap at 30 s); incremental processing is future work. |
-
-**Stefan (Clarisights), on system complexity (15 Oct).**
-
-| His point | Our project |
-|---|---|
-| "Every new component that you add to handle failure is a new way to fail." His failover cluster caused the outage it was meant to prevent. | Single-node design, one writer, few moving parts; Airflow's one retry rather than elaborate failover. |
-| A startup "built to scale from day one" (containers, Kubernetes, Airflow, Kafka, MongoDB, Ceph) was on call every day; a 30 TB Postgres was < 0.5 TB once columnar and compressed; owned hardware cost ~⅓ of the cloud bill. | Why no Kafka, MongoDB, Spark cluster or Kubernetes: we do not have those problems. |
-| **"If it fits one server, it isn't big data. Measure before you scale."** "Do the arithmetic: do you need the cluster, or one slightly bigger machine?" | Our honest "this is not big data" stance (§3.3) and the measured optimisation study. |
-| "I kept asking *can I*, and did not stop to ask *should I*." Understand what a tool does before adopting it; "there is no magic in IT". | The rejected-alternatives table (§6) and the "deliberately not applicable" list in `docs/OPTIMISATION_CONCEPTS.md`. |
-| A Spark cluster kept deadlocking; the fix was Spark **as a library on one machine** pulling jobs from a Postgres queue. | Why our Spark path is optional and local, not a cluster. |
-| A daily export took > 24 h because Ruby fetched millions of IDs and then asked for those IDs (54 MB SQL statements). Fix: let Ruby generate SQL, let the database do the data work ("Ruby never sees the data"). | Ship the operator, not the data: dbt runs SQL inside DuckDB/BigQuery (ELT); semi-join on order IDs inside the query rather than fetching ID lists. |
-
-**Joydeep Banik Roy (Zeotap), "From MapReduce to Lakehouse".** Formats, partition sizing, small files, skew and salting, join strategies, query planning and AQE, approximation gotchas, and the lakehouse questions — mapped in §7.12. The single most useful point for the viva: his closing questions (*which files are the current table, what does a reader see mid-update, can we retry without duplicates, can we reproduce yesterday's answer*) describe exactly our non-atomic publication gap and its fix.
-
-**Himanshu Gupta (IBM), sketching algorithms.** Bloom, counting Bloom, Count-Min, HLL, KLL, Theta; error bounds; mergeability — mapped in §7.12. Viva line: "exact is cheap at our size; we would use Count-Min for streaming pair counts, where its accuracy on heavy hitters matches what we display."
-
-**Chhavi Yadav (CMU), DeCompBench (25 Sep, contemporary topic).** Harmful tasks decomposed into individually benign steps bypass refusal-based AI safety (one frontier model's refusal rate fell from ~98% to ~15%); proposed defence: monitor aggregates across steps and sessions rather than single prompts. Only loosely related to our project; the transferable idea is that checking each piece in isolation misses properties of the whole — the same reason our BigQuery bug passed every per-column test and was caught only by a whole-table invariant.
-
----
-
-## 8. Requirements traceability and honest gaps
-
-Lab 1 (16 Aug) listed these requirements. An examiner may hold the project to them, so know the status of each.
+Lab 1 (16 Aug) listed these requirements.
 
 | Requirement (Lab 1) | Status | Evidence / honest answer |
 |---|---|---|
@@ -881,20 +572,20 @@ Lab 1 (16 Aug) listed these requirements. An examiner may hold the project to th
 | NFR: reproducibility | **Met** | Seeded generation, SHA-256 manifests, identical rebuilds, fresh-clone run verified (3 Nov). |
 | NFR: data quality | **Met** | Gates, invariants, 36 dbt tests, reconciliation on two engines. |
 | NFR: performance | **Met** | Baseline, bottlenecks, 18 strategies, one landed optimisation, measured trade-offs. |
-| Spec item: Spark processing (named in an NFR on lineage) | **Partly met** | Spark path implemented but not the default and not benchmarked here (§7.10). |
+| Spec item: Spark processing (named in an NFR on lineage) | **Partly met** | Spark path implemented but not the default and not benchmarked here. |
 | Spec item: Metabase/React dashboard | **Changed** | FastAPI-served HTML/D3 dashboard instead (§6.1). |
 
 The team's original design documents also disagreed with each other (two said "MinIO excluded", two mandated it). The code resolves this with the dual storage backend; the documents themselves were not revised.
 
 ---
 
-## 9. How to run everything
+## 8. How to run everything
 
-### 9.1 Requirements
+### 8.1 Requirements
 
 Python 3.10+ and `make`; internet on the first run (pip, `dbt deps`, D3 from cdnjs). Optional: Python 3.11 for Airflow, Java 17+ for Spark, Docker for MinIO, a Google account and `gcloud` for BigQuery. The Olist CSVs are committed, nothing else to download.
 
-### 9.2 From a fresh clone (verified on a clean copy on 3 Nov)
+### 8.2 From a fresh clone (verified on a clean copy on 3 Nov)
 
 ```bash
 make install            # .venv with pipeline, API, dbt (DuckDB) and study tools  (~30 s)
@@ -903,7 +594,7 @@ make up                 # rebuild everything from the CSVs, check every hand-off
 # open http://127.0.0.1:8000   (API docs at /docs)
 ```
 
-### 9.3 All make targets
+### 8.3 All make targets
 
 | Target | What it does |
 |---|---|
@@ -923,7 +614,7 @@ make up                 # rebuild everything from the CSVs, check every hand-off
 | `make minio-up` / `minio-down` | Start/stop MinIO (then `ECOM_STORAGE_BACKEND=minio`) |
 | `make loc` | Report functions over 50 lines |
 
-### 9.4 BigQuery one-time setup
+### 8.4 BigQuery one-time setup
 
 1. Create a project in the Google Cloud console (sandbox; do not start the paid trial or add billing). Our project: `de-group-9`.
 2. Install the gcloud CLI (`sudo snap install google-cloud-cli --classic`).
@@ -931,13 +622,13 @@ make up                 # rebuild everything from the CSVs, check every hand-off
 4. `gcloud auth application-default set-quota-project de-group-9`.
 5. Set `ECOM_GCP_PROJECT=de-group-9` in `.env`; `pip install -e '.[bigquery]'`; `make warehouse-bq`.
 
-### 9.5 Airflow
+### 8.5 Airflow
 
 `make airflow-install` (once), `make airflow-up`, open http://localhost:8080 (login printed in the terminal), unpause `ecom_pipeline`, trigger a run. `Ctrl+C` stops all Airflow components. `make airflow-test` runs the DAG once without a scheduler.
 
 ---
 
-## 10. Debugging guide
+## 9. Debugging guide
 
 Every entry below is a failure that actually happened during the project (or a direct variant), with its cause and fix.
 
@@ -972,11 +663,11 @@ Every entry below is a failure that actually happened during the project (or a d
 | MinIO connection refused | MinIO not started | `make minio-up` (Docker), then `ECOM_STORAGE_BACKEND=minio`. |
 | Spark tests "skipped" | PySpark not installed | `pip install -e '.[spark]'` (needs Java 17+). |
 
-General method: (1) read the exact error and which stage/task raised it; (2) every stage writes evidence (manifests, quality report, dbt `target/run_results.json`, Airflow task logs under `.airflow/home/logs/`); (3) rerun one stage with its own `make` target; (4) check row counts against §11.
+General method: (1) read the exact error and which stage/task raised it; (2) every stage writes evidence (manifests, quality report, dbt `target/run_results.json`, Airflow task logs under `.airflow/home/logs/`); (3) rerun one stage with its own `make` target; (4) check row counts against §10.
 
 ---
 
-## 11. Results and numbers cheat sheet
+## 10. Results and numbers cheat sheet
 
 | Area | Result |
 |---|---|
@@ -995,7 +686,7 @@ Figures available: `reports/figures/*.png` (analysis and inventory), `reports/be
 
 ---
 
-## 12. Limitations and future work
+## 11. Limitations and future work
 
 **Limitations (know these before someone else points them out):**
 
@@ -1004,7 +695,7 @@ Figures available: `reports/figures/*.png` (analysis and inventory), `reports/be
 3. **73.5% of seller-products have insufficient evidence** (fewer than 3 units sold).
 4. **Product-level recommendations cover 14.8% of products**; the category fallback covers the rest with weaker evidence.
 5. **Spark path not the default and not benchmarked**; PySpark not installed in the main environment.
-6. **Processed-layer writes are not atomic across tables** (§7.9).
+6. **Processed-layer writes are not atomic across tables**: a crash mid-write could leave a mix of old and new tables.
 7. **API needs a restart to see new data**; no authentication (loopback only by default).
 8. **BigQuery is not in the daily DAG** (local DuckDB is; BigQuery runs with `make warehouse-bq`); sandbox tables expire after 60 days.
 9. **The co-occurrence pipeline still uses the original nested loop**; the faster sparse-matrix and DuckDB strategies are measured but not landed.
@@ -1012,13 +703,13 @@ Figures available: `reports/figures/*.png` (analysis and inventory), `reports/be
 11. **No JSON/XML ingestion and no NoSQL database** (FR_1, FR_3 partly met).
 12. **Python 3.10** is losing support in Google's libraries.
 
-**Future work (in priority order):** atomic processed-layer publication (versioned directory + pointer switch, or a lakehouse table format such as Delta Lake/Iceberg, which adds snapshots and time travel — the questions raised in the MapReduce→Lakehouse lecture); run and benchmark the Spark path and report its break-even volume; land the sparse-matrix or DuckDB co-occurrence join with a size-based switch (the adaptive rule from §7.8); API hot reload when the inventory manifest changes; add BigQuery as an optional DAG branch; seasonal demand model; SCD Type 2 sellers if data were live; streaming micro-batch ingest; Python 3.11.
+**Future work (in priority order):** atomic processed-layer publication (versioned directory + pointer switch, or a lakehouse table format such as Delta Lake/Iceberg, which adds snapshots and time travel); run and benchmark the Spark path and report its break-even volume; land the sparse-matrix or DuckDB co-occurrence join with a size-based switch (an adaptive rule: choose the strategy by input size); API hot reload when the inventory manifest changes; add BigQuery as an optional DAG branch; seasonal demand model; SCD Type 2 sellers if data were live; streaming micro-batch ingest; Python 3.11.
 
 ---
 
-## 13. References, citations and AI-use note
+## 12. References, citations and AI-use note
 
-Cite in **IEEE** format with in-text numbers [n], as the instructor requested; link to papers or documentation, not company home pages.
+Cite in **IEEE** format with in-text numbers [n],; link to papers or documentation, not company home pages.
 
 [1] Olist, "Brazilian E-Commerce Public Dataset by Olist," Kaggle, 2018. License CC BY-NC-SA 4.0.
 [2] M. Kleppmann, *Designing Data-Intensive Applications*. Sebastopol, CA, USA: O'Reilly Media, 2017.
@@ -1043,13 +734,12 @@ Cite in **IEEE** format with in-text numbers [n], as the instructor requested; l
 [21] G. Cormode and S. Muthukrishnan, "An improved data stream summary: The count-min sketch and its applications," *J. Algorithms*, vol. 55, no. 1, pp. 58–75, 2005.
 [22] M. Armbrust *et al.*, "Delta Lake: High-performance ACID table storage over cloud object stores," *Proc. VLDB Endow.*, vol. 13, no. 12, pp. 3411–3424, 2020.
 [23] M. Budiu *et al.*, "DBSP: Automatic incremental view maintenance for rich query languages," *Proc. VLDB Endow.*, vol. 16, no. 7, 2023.
-[24] Guest and expert lectures, CSL4030, IIT Jodhpur, 2026: S. Sonawane and Stefan (Clarisights), 15 Oct; H. Gupta (IBM), sketching algorithms; J. Banik Roy (Zeotap), "From MapReduce to Lakehouse"; C. Yadav (CMU), "DeCompBench", 25 Sep.
 
-**AI-use note.** The course policy requires that any AI tool used be cited and its outputs verified. Parts of this project's code, analysis and documentation (including this handbook) were produced with assistance from an AI coding assistant (Anthropic's Claude). Every number in this handbook was produced by running the project's own code; state the assistance in the report's acknowledgements or methodology section as the policy requires.
+**AI-use note.** Parts of this project's code, analysis and documentation (including this handbook) were produced with assistance from an AI coding assistant (Anthropic's Claude). Every number in this handbook was produced by running the project's own code, and every output was verified.
 
 ---
 
-## 14. Glossary
+## 13. Glossary
 
 | Term | Meaning in this project |
 |---|---|
@@ -1082,10 +772,10 @@ Cite in **IEEE** format with in-text numbers [n], as the instructor requested; l
 
 ---
 
-## 15. File-by-file map of the repository
+## 14. File-by-file map of the repository
 
 ```
-Makefile                      every command (see §9.3)
+Makefile                      every command (see §8.3)
 pyproject.toml                package, extras ([dev] [api] [warehouse] [bench] [bigquery] [spark] [minio]), ruff/black/pytest config
 .env.example                  all settings with defaults (copy to .env)
 docker-compose.yml            MinIO service
