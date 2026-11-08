@@ -21,3 +21,6 @@ claude_help/
 
 # local Airflow: its own venv and AIRFLOW_HOME (make airflow-install)
 .airflow/
+
+# course-concept mapping, kept locally only
+docs/OPTIMISATION_CONCEPTS.md

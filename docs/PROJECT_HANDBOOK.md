@@ -787,7 +787,6 @@ docs/
   PROJECT_STATUS.md           running status note and measured findings
   CODING_STANDARDS.md         the engineering rules (§4.3)
   contracts.md                inter-team data contracts 1–5
-  OPTIMISATION_CONCEPTS.md    course concept → file that measures it
 src/ecom/
   config.py                   Settings + named constants (§5.1)
   contracts.py                table contracts for the six used tables

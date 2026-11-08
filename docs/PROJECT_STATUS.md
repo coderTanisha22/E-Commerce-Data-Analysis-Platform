@@ -325,8 +325,7 @@ pipeline is batch. Latency, throughput and peak memory are used instead.
 `tests/test_bench.py`. Run with `make bench`; writes
 `reports/benchmarks/results.json`, `optimisation_report.md` and five figures.
 Every number in the report is generated from that JSON, so prose and
-measurement cannot drift. `docs/OPTIMISATION_CONCEPTS.md` maps each course
-concept to the file that measures it.
+measurement cannot drift.
 
 The design rule that makes the study worth anything: **every strategy's output
 is compared against the baseline's, and a faster strategy that returns a
@@ -500,7 +499,6 @@ selective case pruning serves) and **cluster** rather than partition by
 | `reports/benchmarks/optimisation_report.md` | The optimisation study: strategy tables, fragmentation matrix, crossover, scaling |
 | `reports/benchmarks/results.json` | Every measurement, machine-readable; the report is generated from it |
 | `reports/benchmarks/figures/f1–f5*.png` | Crossover curve, scaling curves, layout matrix, shard sweep, strategy speedups |
-| `docs/OPTIMISATION_CONCEPTS.md` | Course concept -> the file that measures it, incl. what deliberately does not apply |
 
 **Artifacts** (published pages, not in the repo):
 - Data audit — `claude.ai/code/artifact/e8113c4f-0e53-4f2f-8d70-222f5c5a5a60`

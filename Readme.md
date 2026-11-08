@@ -59,7 +59,6 @@ dbt_warehouse/           dbt project: staging → intermediate → marts
 docs/
   CODING_STANDARDS.md    Conventions, implementing the project tracker's rules
   PROJECT_STATUS.md      Current state, measured findings, open decisions
-  OPTIMISATION_CONCEPTS.md  Course concept → where it is measured in the code
   contracts.md           Data contracts between pipeline stages
 data/                    Olist source CSVs as downloaded, never modified
 reports/                 Generated reports, figures and slide charts
@@ -183,8 +182,6 @@ Every path is an environment variable with a local-filesystem default.
 - `docs/CODING_STANDARDS.md` — conventions. The load-bearing rule is that a
   transform takes a DataFrame and returns a DataFrame and never does I/O.
 - `docs/contracts.md` — the data contract between ingestion and cleaning.
-- `docs/OPTIMISATION_CONCEPTS.md` — which course concept each benchmark
-  exercises, and which ones deliberately do not apply here.
 - `reports/benchmarks/optimisation_report.md` — the measured optimisation
   study: strategy comparisons, the fragmentation matrix, the selectivity
   crossover and the scaling curves.
