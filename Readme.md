@@ -10,8 +10,11 @@ co-occurrence graph and restocking from deterministic rules.
 ```
 Olist CSVs → ingestion → raw zone → cleaning → processed zone
                                                     ├── synthetic inventory → restock rules
-                                                    └── co-occurrence graph → recommendations
-             (dbt → BigQuery → FastAPI → dashboard: not yet built)
+                                                    ├── co-occurrence graph → recommendations
+                                                    ├── dbt warehouse (DuckDB locally)
+                                                    └── FastAPI → dashboard (make serve)
+             Airflow schedules all of it daily (dags/ecom_pipeline.py)
+             BigQuery: make warehouse-bq (sandbox, no billing)
 ```
 
 ## Project layout
@@ -76,16 +79,31 @@ against each other on identical input — the optimisation comparison the course
 asks for. PySpark is an **optional dependency**; the pandas path and every test
 that does not need Spark run without it installed.
 
+For everything about the project in one place (architecture, every design decision and its alternatives, syllabus mapping, viva preparation, debugging guide), read [docs/PROJECT_HANDBOOK.md](docs/PROJECT_HANDBOOK.md).
+
 ## Setup
 
-Requires Python 3.10+. Java 17+ only if you want the Spark path.
+Requires Python 3.10+ and `make`. Network access on first run (pip, and
+`dbt deps`). The Olist CSVs are committed under `data/`, so there is nothing to
+download.
+
+From a fresh clone, three commands give the whole system with the dashboard on
+http://127.0.0.1:8000 (verified on a clean copy: about 30 s to install, 30 s to build):
 
 ```bash
-make install                    # venv + dependencies
-pip install -e '.[spark]'       # optional: adds PySpark
-pip install -e '.[minio]'       # optional: adds the MinIO backend
+make install                    # .venv with the pipeline, API, dbt and study tools
 cp .env.example .env
+make up                         # rebuild everything from the CSVs, check it, serve it
 ```
+
+Optional extras, each independent of the rest:
+
+| For | Needs | Run |
+|---|---|---|
+| Airflow | Python 3.11 (`AIRFLOW_PYTHON=python3.12 make …` to use another) | `make airflow-install`, then `make airflow-up` |
+| BigQuery | Your own GCP project (the free sandbox works) and `gcloud`; set `ECOM_GCP_PROJECT` in `.env` | `pip install -e '.[bigquery]'`, then `make warehouse-bq` |
+| Spark path | Java 17+ | `pip install -e '.[spark]'` |
+| MinIO | Docker | `pip install -e '.[minio]'`, `make minio-up` |
 
 ## Running it
 
@@ -96,9 +114,20 @@ make clean         # raw → processed  (pandas)
 make inventory     # generate the synthetic inventory table
 make analyse       # profiling metrics + figures
 make bench         # optimisation study → results.json + report + figures
-make warehouse     # processed → dbt warehouse on DuckDB (14 models, 35 tests)
+make warehouse     # processed → dbt warehouse on DuckDB (14 models, 36 tests)
+make serve         # API + dashboard on http://127.0.0.1:8000  (API docs at /docs)
+make e2e           # rebuild everything from the CSVs and check every hand-off (~30 s)
+make up            # make e2e, then serve
+make airflow-install  # one-off: Airflow 3.3.2 in its own venv under .airflow/
+make airflow-test     # run the whole DAG once without a scheduler
+make warehouse-bq     # load to BigQuery, build + test there, reconcile with the pipeline
+make airflow-up       # scheduler + UI on http://localhost:8080 (unpause ecom_pipeline there)
 make check         # ruff + black + pytest
 ```
+
+The dashboard is served by the API itself, so `make serve` is the only process
+to run. Its charts load D3 from cdnjs; without network access the tables and
+figures still work but the charts do not draw.
 
 Spark path, for a given run date:
 
