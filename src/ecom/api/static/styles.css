@@ -77,6 +77,8 @@ header.page {
 }
 
 header.page h1 { font-size: 20px; font-weight: 600; margin: 0; }
+header.page .logout { font-size: 13px; color: inherit; opacity: 0.75; }
+header.page .logout:hover { opacity: 1; }
 .provenance { color: var(--text-muted); font-size: 12px; }
 
 main {

@@ -16,6 +16,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from ecom.api.auth import SessionSigner, install_auth, parse_users
 from ecom.api.loader import PlatformData, load_platform
 from ecom.api.schemas import (
     HealthResponse,
@@ -25,6 +26,7 @@ from ecom.api.schemas import (
     ProductDetail,
     SellerInventoryResponse,
 )
+from ecom.config import Settings, get_settings
 from ecom.discovery.names import synthesize_product_name
 from ecom.discovery.schemas import (
     CategoryRelationsResponse,
@@ -50,13 +52,18 @@ MAX_GRAPH_NODES = 500
 StatusFilter = Literal[STATUS_URGENT, STATUS_MONITOR, STATUS_HEALTHY, STATUS_INSUFFICIENT]
 
 
-def create_app(loader: Callable[[], PlatformData] = load_platform) -> FastAPI:
+def create_app(
+    loader: Callable[[], PlatformData] = load_platform, *, settings: Settings | None = None
+) -> FastAPI:
     """Build the application.
 
     Args:
         loader: Returns the data the routes serve. Tests pass a fixture-built
             loader; production reads the processed layer.
+        settings: Configuration; read from the environment when omitted. A login
+            is required only when ``auth_users`` is set.
     """
+    settings = settings or get_settings()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -73,6 +80,7 @@ def create_app(loader: Callable[[], PlatformData] = load_platform) -> FastAPI:
     _register_inventory_routes(app)
     _register_platform_routes(app)
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+    _configure_login(app, settings)
 
     @app.middleware("http")
     async def revalidate_dashboard(request: Request, call_next):
@@ -84,6 +92,19 @@ def create_app(loader: Callable[[], PlatformData] = load_platform) -> FastAPI:
         return response
 
     return app
+
+
+def _configure_login(app: FastAPI, settings: Settings) -> None:
+    """Require a retailer login when accounts are configured (the deployed case)."""
+    if not settings.auth_users:
+        return
+    if not settings.session_secret:
+        raise ValueError("ECOM_SESSION_SECRET must be set when ECOM_AUTH_USERS is set")
+    install_auth(
+        app,
+        users=parse_users(settings.auth_users),
+        signer=SessionSigner(settings.session_secret, hours=settings.session_hours),
+    )
 
 
 def get_platform(request: Request) -> PlatformData:

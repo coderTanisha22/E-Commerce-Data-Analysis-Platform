@@ -221,6 +221,28 @@ def _cmd_serve(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_save_overview(_: argparse.Namespace) -> int:
+    """Save the dashboard's headline figures for this run (used by the deployment)."""
+    from ecom.api.loader import save_overview
+
+    print(f"saved {save_overview()}")
+    return 0
+
+
+def _cmd_hash_password(_: argparse.Namespace) -> int:
+    """Prompt for a password and print the hash to put in ECOM_AUTH_USERS."""
+    import getpass
+
+    from ecom.api.auth import hash_password
+
+    password = getpass.getpass("Password: ")
+    if not password or password != getpass.getpass("Repeat password: "):
+        print("passwords were empty or did not match")
+        return 1
+    print(hash_password(password))
+    return 0
+
+
 def _cmd_storage(_: argparse.Namespace) -> int:
     """Show the active backend and what it currently holds."""
     storage = get_storage()
@@ -317,6 +339,13 @@ def build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--host", default=None, help="override ECOM_API_HOST")
     serve.add_argument("--port", type=int, default=None, help="override ECOM_API_PORT")
     serve.set_defaults(func=_cmd_serve)
+
+    sub.add_parser(
+        "save-overview", help="save the dashboard headline figures for this run"
+    ).set_defaults(func=_cmd_save_overview)
+    sub.add_parser(
+        "hash-password", help="hash a retailer password for ECOM_AUTH_USERS"
+    ).set_defaults(func=_cmd_hash_password)
 
     return parser
 

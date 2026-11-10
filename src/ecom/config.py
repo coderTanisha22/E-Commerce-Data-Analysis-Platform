@@ -101,6 +101,19 @@ class Settings(BaseSettings):
     network interface has to be a deliberate ECOM_API_HOST=0.0.0.0."""
     api_port: int = 8000
 
+    auth_users: str | None = None
+    """Retailer logins as ``name=<hash>;name2=<hash>`` (hashes from ``ecom hash-password``).
+    Unset means no login, which is right only while the API stays on loopback."""
+    session_secret: str | None = None
+    """Key that signs login cookies. Required whenever ``auth_users`` is set."""
+    session_hours: int = 12
+    """How long a login lasts before the retailer must sign in again."""
+
+    api_saved_overview: bool = False
+    """Serve the dashboard headline figures from ``ecom save-overview`` instead of
+    recomputing them at start-up. Deployment-only: skipping the three largest tables
+    keeps the server under a 512 MB memory limit. Used only if it matches this run."""
+
     def resolve(self, value: Path) -> Path:
         """Make a configured path absolute against the repo root."""
         return value if value.is_absolute() else REPO_ROOT / value

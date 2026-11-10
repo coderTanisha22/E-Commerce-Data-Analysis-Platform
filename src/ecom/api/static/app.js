@@ -468,7 +468,20 @@ function fitToView(svg, zoom, nodes, width, height) {
 }
 
 // ---------------------------------------------------------------- boot
+async function showLogout() {
+  // /session exists only when the deployment requires a login.
+  try {
+    const response = await fetch("/session");
+    if (response.ok) {
+      const session = await response.json();
+      $("logout").textContent = `Log out (${session.user})`;
+      $("logout").hidden = false;
+    }
+  } catch (_) { /* no login configured */ }
+}
+
 async function boot() {
+  showLogout();
   try {
     const [health, overview] = await Promise.all([api("/health"), api("/overview")]);
     const built = health.inventory_generated_at ? new Date(health.inventory_generated_at).toLocaleString() : "unknown";

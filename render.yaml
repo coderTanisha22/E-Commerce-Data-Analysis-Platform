@@ -1,0 +1,32 @@
+# Render Blueprint: the retailer dashboard and API as one web service.
+#
+# The build rebuilds the processed layer from the committed Olist CSVs (the same
+# `ecom pipeline` the DAG runs), then saves the dashboard's headline figures so the
+# server only loads the small serving tables and stays under the free plan's 512 MB.
+# Retailer accounts are set in the Render dashboard (ECOM_AUTH_USERS), never in git.
+services:
+  - type: web
+    name: ecom-retail-dashboard
+    runtime: python
+    plan: free
+    buildCommand: >-
+      pip install --upgrade pip &&
+      pip install -e '.[api]' &&
+      python -m ecom.cli pipeline --no-figures &&
+      python -m ecom.cli save-overview
+    startCommand: >-
+      uvicorn ecom.api.app:create_app --factory
+      --host 0.0.0.0 --port $PORT
+      --proxy-headers --forwarded-allow-ips='*'
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: ECOM_API_SAVED_OVERVIEW
+        value: "true"
+      - key: ECOM_SESSION_SECRET
+        generateValue: true
+      - key: ECOM_AUTH_USERS
+        sync: false
+      - key: ECOM_LOG_LEVEL
+        value: INFO

@@ -78,12 +78,29 @@ def build_overview(
     )
 
 
+OVERVIEW_KEY = "processed/_overview.json"
+"""Headline figures saved by ``ecom save-overview``, tagged with the run they describe."""
+
+SERVING_TABLES = ("products", "sellers", "product_cooccurrence", "synthetic_inventory")
+"""Tables the routes query on every request."""
+
+OVERVIEW_TABLES = ("orders", "order_lines", "order_products")
+"""The three largest tables, needed only to compute the headline figures."""
+
+
 def load_platform(
     *,
     storage: StorageBackend | None = None,
     settings: Settings | None = None,
+    use_saved_overview: bool | None = None,
 ) -> PlatformData:
     """Read the processed layer and build the discovery and inventory services.
+
+    Args:
+        use_saved_overview: Take the headline figures from ``ecom save-overview``
+            when they were saved from this same run. Defaults to the
+            ``api_saved_overview`` setting; a stale or missing file falls back
+            to recomputing, so the dashboard never shows another run's numbers.
 
     Raises:
         FileNotFoundError: If the pipeline has not produced a table the API needs;
@@ -91,47 +108,80 @@ def load_platform(
     """
     settings = settings or get_settings()
     storage = storage or get_storage(settings)
-    tables = {
-        name: _read_table(storage, name)
-        for name in (
-            "orders",
-            "order_lines",
-            "order_products",
-            "products",
-            "sellers",
-            "product_cooccurrence",
-            "synthetic_inventory",
-        )
-    }
+    if use_saved_overview is None:
+        use_saved_overview = settings.api_saved_overview
+    fingerprint = _run_fingerprint(storage)
+    saved = _saved_overview(storage, fingerprint) if use_saved_overview else None
+    names = SERVING_TABLES if saved is not None else SERVING_TABLES + OVERVIEW_TABLES
+    tables = {name: _read_table(storage, name) for name in names}
     discovery = ProductGraphService(
         pairs=tables["product_cooccurrence"], products=tables["products"]
     )
     inventory = InventoryService(
         tables["synthetic_inventory"], products=tables["products"], sellers=tables["sellers"]
     )
-    overview = build_overview(
-        orders=tables["orders"],
-        order_lines=tables["order_lines"],
-        order_products=tables["order_products"],
-        products=tables["products"],
-        sellers=tables["sellers"],
-        pairs=tables["product_cooccurrence"],
-        inventory=inventory,
-        settings=settings,
-    )
+    if saved is not None:
+        overview = OverviewResponse.model_validate({**saved, "inventory": inventory.summary()})
+    else:
+        overview = build_overview(
+            orders=tables["orders"],
+            order_lines=tables["order_lines"],
+            order_products=tables["order_products"],
+            products=tables["products"],
+            sellers=tables["sellers"],
+            pairs=tables["product_cooccurrence"],
+            inventory=inventory,
+            settings=settings,
+        )
     logger.info(
-        "api data loaded: %d graph products, %d inventory rows",
+        "api data loaded: %d graph products, %d inventory rows, overview %s",
         discovery.graph.number_of_nodes(),
         len(inventory),
+        "saved" if saved is not None else "computed",
     )
     return PlatformData(
         discovery=discovery,
         inventory=inventory,
         overview=overview,
         storage_description=storage.describe(),
-        ingested_at=_manifest_field(storage, RAW_MANIFEST_KEY, "ingested_at"),
-        inventory_generated_at=_manifest_field(storage, INVENTORY_MANIFEST_KEY, "generated_at"),
+        ingested_at=fingerprint["ingested_at"],
+        inventory_generated_at=fingerprint["inventory_generated_at"],
     )
+
+
+def save_overview(
+    *, storage: StorageBackend | None = None, settings: Settings | None = None
+) -> str:
+    """Compute the headline figures for the current run and save them; return the key."""
+    settings = settings or get_settings()
+    storage = storage or get_storage(settings)
+    platform = load_platform(storage=storage, settings=settings, use_saved_overview=False)
+    document = {
+        "fingerprint": _run_fingerprint(storage),
+        "overview": platform.overview.model_dump(mode="json", exclude={"inventory"}),
+    }
+    storage.put_bytes(OVERVIEW_KEY, json.dumps(document, indent=2).encode())
+    return OVERVIEW_KEY
+
+
+def _run_fingerprint(storage: StorageBackend) -> dict[str, str | None]:
+    """Identify the pipeline run behind the processed layer by its two build timestamps."""
+    return {
+        "ingested_at": _manifest_field(storage, RAW_MANIFEST_KEY, "ingested_at"),
+        "inventory_generated_at": _manifest_field(storage, INVENTORY_MANIFEST_KEY, "generated_at"),
+    }
+
+
+def _saved_overview(storage: StorageBackend, fingerprint: dict[str, str | None]) -> dict | None:
+    """The saved figures if they describe this run, else None (and the caller recomputes)."""
+    if not storage.exists(OVERVIEW_KEY):
+        logger.warning("no saved overview at %s; computing it", OVERVIEW_KEY)
+        return None
+    document = json.loads(storage.get_bytes(OVERVIEW_KEY))
+    if document.get("fingerprint") != fingerprint:
+        logger.warning("saved overview belongs to another pipeline run; computing it")
+        return None
+    return document["overview"]
 
 
 def _read_table(storage: StorageBackend, name: str) -> pd.DataFrame:
