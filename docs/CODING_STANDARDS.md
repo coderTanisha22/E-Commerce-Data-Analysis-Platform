@@ -166,7 +166,8 @@ could change a result must be traceable to a named constant.
 
 ## 9. Airflow and API naming
 
-Not yet built, but fixed now so the first commit in each layer is already correct.
+Fixed before either layer was built; both now follow it (`dags/ecom_pipeline.py`,
+`src/ecom/orchestration/plan.py`, `src/ecom/api/app.py`).
 
 | Rule | Priority | Example |
 |---|---|---|
