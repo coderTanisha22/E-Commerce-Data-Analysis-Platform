@@ -1,4 +1,4 @@
-# E-Commerce Data Engineering Platform
+#  E-Commerce Data Engineering Platform
 
 Batch data-engineering pipeline on the Olist Brazilian E-Commerce dataset, built
 for two analytical use cases: **product co-occurrence** (explainable
