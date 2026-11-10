@@ -1,6 +1,6 @@
 # Project Status — handoff note
 
-**Last updated: 21 October 2026.** Read this first when picking the project up in a
+**Last updated: 2 November 2026.** Read this first when picking the project up in a
 new session. It records what exists, what the measured numbers are, what is
 decided, and what is still open.
 
@@ -41,20 +41,39 @@ Metabase/React (dashboard) · Docker.
 | Analysis | Done | profile.json, co-occurrence graph, 8 figures |
 | Coding standards | Done | 19/19 tracker rules, enforced by `make check` |
 | Optimisation study | Done | 18 strategies, 4 layouts, 4 sweeps, `make bench` |
-| dbt warehouse | Done (local) | 14 models, 35 tests, all passing on DuckDB — `make warehouse` |
+| dbt warehouse | Done (local) | 14 models, 36 tests, all passing on DuckDB — `make warehouse` |
+| API + dashboard | Done | `src/ecom/api/` — 11 endpoints (Contracts 4 and 5), dashboard served at `/`, `make serve`; 19 tests in `tests/test_api.py` |
+| End-to-end run | Done | `make e2e`: CSVs → processed → warehouse → reconcile → API tests, ~30 s, all green |
+| Airflow DAG | Done | `dags/ecom_pipeline.py`, 9 tracker task IDs, Airflow 3.3.2 in its own venv; full scheduler run ~30 s, all green (see §7a) |
+| Graph discovery service | Done | `src/ecom/discovery/` — recommendations, relationship-aware search, synthetic display names, D3 graph export, Pydantic response schemas for the API (PR #1) |
 
-**97 tests passing** (2 skipped, Spark) · ruff and black clean · 41 source
-modules · ~6,700 LoC.
+**158 tests passing** (2 skipped, Spark) · ruff and black clean.
 
 ### Not started
 
-FastAPI · Metabase dashboard · Airflow DAG.
+Nothing in the designed stack is unbuilt. The
+dashboard is a page served by FastAPI rather than Metabase: one process, no JVM,
+and it reads only the API.
 
-**No BigQuery run has been made.** The warehouse's `bigquery` target, the
-partition/cluster specification on `fct_order_items` and
-`scripts/load_to_bigquery.py` are written but unexecuted — there is no GCP
-project attached. The local DuckDB build proves the SQL, the grain and the
-invariants; it does not prove the BigQuery dialect or the loader.
+**BigQuery runs (2 Nov 2026).** Sandbox project `de-group-9` (no billing).
+`make warehouse-bq` loads the six source tables to `olist_cleaned`, builds and
+tests all models into `olist_analytics_dev` (dbt 50/50), then reconciles with
+the same checks as DuckDB: 112,650 fact rows, price total R$13,591,643.70, and
+all 4,054 co-occurrence pairs identical. ~2 min end to end.
+
+Two things the first BigQuery run exposed:
+- **The loader read the old Spark layout** and would have found no files; it now
+  maps the six contract tables to the pipeline's processed and raw files.
+- **The sandbox's forced 60-day partition expiry emptied the fact table.** A DATE
+  partition on 2016-2018 orders expired on arrival: 0 rows, yet every
+  `not_null` and relationship test still passed on the empty table; only the
+  revenue invariant caught it. `fct_order_items` now uses an integer-range
+  partition on `order_month_key` (YYYYMM), which expiry does not touch. Pruning
+  verified by dry run: 2 of 24 months reads 79% fewer bytes than a full scan.
+
+Sandbox tables still expire after 60 days; rerun `make warehouse-bq` to rebuild.
+Credentials: `gcloud auth application-default login` (tick the Google Cloud
+data scope) and `gcloud auth application-default set-quota-project de-group-9`.
 
 The **optimisation workstream is now built and measured** — see §7.
 
@@ -91,8 +110,10 @@ replaced.
 ### Inventory velocity is very low
 - Median seller-product sells **0.0080 units/day** (~1 unit per 125 days)
 - 56% sold exactly one unit in the 577-day window
-- **Random stock → 0.0% urgent.** Velocity-derived stock → **10.8% urgent**.
-  This is the single most important design result in the project.
+- **Random stock → 0.0% urgent.** Velocity-derived stock → **2.3% of scored rows
+  urgent** (206 of 8,951), and those sell 5.7× faster than Healthy rows. This is the
+  single most important design result in the project. (An earlier 10.8% counted
+  rows whose stock had merely rounded to zero; fixed 2 Nov 2026, see §4.)
 
 ### Optimisation findings
 See §7. The headline: partition pruning crosses over to a loss at roughly half
@@ -114,23 +135,29 @@ is provably result-neutral.
 ## 4. Synthetic inventory — the detail
 
 `data/processed/synthetic_inventory.parquet` · **33,787 rows × 14 columns** ·
-seed 42 · SHA-256 `f0881d74ef39da3d8cff47272ffcf1cc83577066d3e06347bf1f2d830248cfa2`
+seed 42 · SHA-256 `8afabc716a0ea56be42555a942ec21c2071a03ef31b67ab935ef7c189a326a35`
 
 **7 columns real** (units_sold, first_sale_date, active_days, daily_sales_rate,
 evidence + the two keys) · **3 synthetic** (lead_time_days, current_quantity,
 last_restock_date) · **3 derived** (reorder_point, days_of_inventory, status) ·
 `is_synthetic = True` on every row.
 
-Status split: Insufficient data 24,836 (73.5%) · Healthy 7,736 (22.9%) ·
-Urgent 966 (2.9%) · Monitor 249 (0.7%).
+Status split: Insufficient data 24,836 (73.5%) · Healthy 8,363 (24.8%) ·
+Monitor 382 (1.1%) · Urgent 206 (0.6%).
 
-**Known limitation, already written up:** 96.4% of reorder points equal 1 because
-of the integer ceiling, and **85.3% of Urgent rows are urgent because stock
-rounded to zero**, not because a fast seller is running low. The 142 rows that do
-have stock sell **6.1× faster** than Healthy ones, so the logic is right. Fix
-would be a non-integer reorder point or a units-per-month rate.
+**Reorder-point fix (2 Nov 2026).** Stock used to be `round(ceil(reorder point) ×
+factor)`, so a reorder point of 1 times a factor under 0.5 rounded to zero stock:
+85.3% of the old 966 Urgent rows were urgent only because of that, and Urgent rows
+sold no faster than Healthy ones (1.1×). Now the reorder point is the exact
+fractional demand over lead time + 3 safety days, and stock is drawn from that
+same exact demand with a one-unit floor (`MIN_STOCK_UNITS`). Result: 0 zero-stock
+rows, Urgent rows sell **5.7× faster** than Healthy, and no scored row is at or
+below its reorder point while Healthy (was 2,776 of 8,951). Dropping the ceiling
+alone, the fix this note used to suggest, was measured and makes it worse (96.6%
+of Urgent rows at zero stock). Stock-outs are not modelled; see the validation
+report §6–7.
 
-Validation: 30-seed stability (Urgent 2.944% ± 0.095), sensitivity sweeps over
+Validation: 30-seed stability (Urgent 0.579% ± 0.040), sensitivity sweeps over
 safety days / stock factor / lead time, reproducible SHA-256, real inputs hashed
 before and after to prove they were never written to.
 
@@ -142,11 +169,18 @@ before and after to prove they were never written to.
 make install            # venv + dependencies
 cp .env.example .env
 make pipeline           # ingest -> clean -> inventory -> analyse
-make check              # ruff + black + 97 tests
+make check              # ruff + black + 158 tests
 make inventory          # regenerate synthetic inventory only
 make bench              # optimisation study -> results.json + report + figures
-make warehouse          # processed -> dbt warehouse on DuckDB (14 models, 35 tests)
+make warehouse          # processed -> dbt warehouse on DuckDB (14 models, 36 tests)
 make warehouse-reconcile # independent check of warehouse totals vs the pipeline
+make serve              # API + dashboard on http://127.0.0.1:8000 (docs at /docs)
+make e2e                # rebuild everything and check every hand-off (~30 s)
+make up                 # make e2e, then serve
+make airflow-install    # one-off: Airflow 3.3.2 in .airflow/venv + its database
+make airflow-test       # run the whole DAG once, in-process
+make warehouse-bq       # load to BigQuery, dbt build there, reconcile (needs gcloud login)
+make airflow-up         # scheduler + UI on :8080 (DAG starts paused; unpause it there)
 make minio-up           # optional: start MinIO, then ECOM_STORAGE_BACKEND=minio
 ```
 
@@ -163,9 +197,13 @@ src/ecom/
   synthetic/       inventory generator + validation
   analysis/        profiling metrics + figures
   bench/           optimisation study: harness, workloads, layouts, sweeps
+  discovery/       graph service, search, display names, API schemas, D3 export
+  api/             FastAPI app, inventory service, loader, static dashboard
+  orchestration/   DAG task plan + the three gate steps only the DAG runs
+dags/              ecom_pipeline.py: turns the plan into Airflow operators
 dbt_warehouse/     dbt project: staging -> intermediate -> marts, DuckDB + BigQuery
   cli.py           the only module allowed argparse and print
-tests/             97 tests
+tests/             158 tests
 docs/CODING_STANDARDS.md
 reports/           generated reports, figures, slide charts
 ```
@@ -183,7 +221,45 @@ reports/           generated reports, figures, slide charts
 
 ---
 
+## 6a. The Airflow DAG
+
+```
+extract_olist → store_raw → spark_clean ─┬─ dbt_build ────────────┐
+                                         ├─ build_cooccurrence ───┼─ validate_models ─┐
+                                         │        └─ build_graph ─────────────────────┤
+                                         └─ refresh_inventory_metrics ────────────────┴─ dashboard_ready
+```
+
+- **Airflow only schedules.** Every task is a shell command into the pipeline's
+  own `.venv` (`python -m ecom.cli …`, `dbt …`). Airflow runs from `.airflow/venv`
+  because its pinned dependencies and dbt's cannot share one environment.
+- **The plan is data.** `ecom.orchestration.plan.TASKS` holds IDs, commands and
+  dependencies; the DAG file only builds operators from it, so
+  `tests/test_orchestration.py` checks the graph (tracker IDs, acyclic, every
+  command a real CLI subcommand) without Airflow installed.
+- **Three new gates** (`ecom.orchestration.steps`), each raising on failure:
+  `extract` checks sources against contracts before raw is touched;
+  `reconcile-warehouse` requires the dbt warehouse to equal the pipeline (row
+  counts, price sum, and all 4,054 co-occurrence pairs and weights: SQL and
+  pandas agree with 0 differences); `ready` loads data exactly as the API does
+  and checks it against the run's manifests.
+- **Verified under the real scheduler**, not only `dags test`: a triggered run
+  succeeds in ~30 s with the three middle branches running in parallel. A run
+  whose scheduler was killed mid-flight was recovered on restart: the orphaned
+  tasks were failed, retried once (`retries=1`) and the run finished green.
+  A missing source file fails `extract_olist` (tested), which by the default
+  `all_success` trigger rule holds back every downstream task.
+- `@daily`, `catchup=False`, `max_active_runs=1` (runs share one processed layer
+  and one DuckDB file, so two at once would race).
+- **The API does not hot-reload.** `dashboard_ready` proves the new data is
+  servable; a running `make serve` keeps the data it started with until
+  restarted.
+
 ## 6. Open decisions and known issues
+
+**Lab documents are out of scope (decided 2 Nov 2026).** Past lab reports, the
+Canva deck and the spec PDFs are not being revised. Work goes into the system.
+The document rows below are kept for the record only.
 
 | Issue | Detail |
 |---|---|
@@ -279,7 +355,8 @@ Arrow instead of pandas via `StorageBackend.get_csv_arrow`.
 - **11–13×** on the orders-table read-and-trim; **1.3–1.8×** on the whole
   cleaning stage across five runs.
 - All six processed tables identical value-by-value.
-- **The synthetic inventory SHA-256 `f0881d74…` reproduces exactly** through the
+- **The synthetic inventory SHA-256 reproduces exactly** (`8afabc71…` since the
+  2 Nov reorder-point fix, re-verified that day; `f0881d74…` before it) through the
   optimised path. This is the strongest check in the project.
 
 The gap between 12.9× and 1.5× is Amdahl's law measured rather than asserted,
