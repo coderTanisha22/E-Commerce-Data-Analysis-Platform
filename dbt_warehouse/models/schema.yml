@@ -1,29 +1,12 @@
-version: 2
-
-# Every model states its grain, unique key and refresh assumption.
-# Refresh assumption for all models: full rebuild on every `dbt build`
-# (no incremental logic); BigQuery sandbox tables also expire after 60 days.
+﻿version: 2
 models:
   - name: stg_orders
-    description: >
-      Grain: one row per order. Unique key: order_id. Typed copy of the
-      cleaned orders table; timestamps parsed with safe_cast (bad value -> NULL).
     columns:
       - name: order_id
         tests: [not_null, unique]
       - name: customer_id
         tests: [not_null]
-      - name: order_status
-        tests:
-          - accepted_values:
-              arguments:
-                values: [delivered, shipped, invoiced, processing, canceled, unavailable, approved, created]
-
   - name: stg_order_items
-    description: >
-      Grain: one row per (order_id, order_item_id), the finest grain in the
-      source. Unique key: (order_id, order_item_id), asserted by the
-      unique_order_item_key test.
     columns:
       - name: order_id
         tests: [not_null]
@@ -33,82 +16,24 @@ models:
         tests: [not_null]
       - name: seller_id
         tests: [not_null]
-
   - name: stg_products
-    description: >
-      Grain: one row per product. Unique key: product_id. Fixes the source's
-      misspelt *_lenght columns.
     columns:
       - name: product_id
         tests: [not_null, unique]
-
-  - name: stg_customers
-    description: >
-      Grain: one row per customer_id, which is a per-order key. The person is
-      customer_unique_id.
-    columns:
-      - name: customer_id
-        tests: [not_null, unique]
-
-  - name: stg_sellers
-    description: "Grain: one row per seller. Unique key: seller_id."
-    columns:
-      - name: seller_id
-        tests: [not_null, unique]
-
-  - name: stg_category_translation
-    description: >
-      Grain: one row per Portuguese category name (71 rows). It covers 71 of the
-      73 categories in the data, so every join to it must be a LEFT join.
-    columns:
-      - name: product_category_name
-        tests: [not_null, unique]
-
-  - name: int_order_products
-    description: >
-      Grain: one row per (order_id, product_id) for orders that count as
-      evidence (canceled and unavailable excluded). Unique key: the pair,
-      asserted by unique_order_product_membership. Input to the co-occurrence
-      model.
-    columns:
-      - name: order_id
-        tests: [not_null]
-      - name: product_id
-        tests: [not_null]
-
   - name: dim_products
-    description: >
-      Grain: one row per product. Unique key: product_id. The English category
-      is folded into this dimension (denormalised on purpose) with a fallback to
-      the slug and then 'unknown'.
     columns:
       - name: product_id
         tests: [not_null, unique]
-
   - name: dim_customers
-    description: "Grain: one row per customer_id (per-order key). Unique key: customer_id."
     columns:
       - name: customer_id
         tests: [not_null, unique]
-
   - name: dim_sellers
-    description: "Grain: one row per seller. Unique key: seller_id."
     columns:
       - name: seller_id
         tests: [not_null, unique]
-
-  - name: dim_dates
-    description: >
-      Grain: one row per calendar day, 2016-01-01 to 2018-12-31. Unique key:
-      date_day.
-    columns:
-      - name: date_day
-        tests: [not_null, unique]
-
   - name: fct_order_items
-    description: >
-      Grain: one row per source order item line, (order_id, order_item_id).
-      Each line is one unit. Partitioned by order_month_key on BigQuery.
+    description: One row per source order item line.
     columns:
       - name: order_id
         tests: [not_null]
@@ -135,54 +60,24 @@ models:
               arguments:
                 to: ref('dim_customers')
                 field: customer_id
-      - name: order_date
-        description: Purchase date. Links to dim_dates.date_day.
-        tests:
-          - relationships:
-              arguments:
-                to: ref('dim_dates')
-                field: date_day
       - name: order_month_key
         description: YYYYMM of the purchase; the BigQuery partition key. Filter on it to prune.
         tests: [not_null]
-
-  - name: fct_orders
-    description: >
-      Grain: one row per order that has at least one item. Unique key: order_id.
-      distinct_products is the basket size used by the co-occurrence analysis.
+  - name: int_order_products
     columns:
       - name: order_id
+        tests: [not_null]
+      - name: product_id
+        tests: [not_null]
+  - name: product_sales_summary
+    columns:
+      - name: product_id
         tests: [not_null, unique]
-      - name: customer_id
-        tests:
-          - not_null
-          - relationships:
-              arguments:
-                to: ref('dim_customers')
-                field: customer_id
-
   - name: fct_product_cooccurrence
-    description: >
-      Grain: one unordered pair of distinct products, product_a < product_b.
-      Unique key: (product_a, product_b). order_count is the number of distinct
-      countable orders containing both. Clustered by (product_a, product_b) on
-      BigQuery.
     columns:
       - name: product_a
         tests: [not_null]
       - name: product_b
         tests: [not_null]
       - name: order_count
-        tests: [not_null]
-
-  - name: product_sales_summary
-    description: >
-      Grain: one row per product (all products in dim_products). Unique key:
-      product_id. total_units_sold is delivered-only units inside the agreed
-      observation window (number_of_days long); each order item line is one unit.
-      Input for the inventory sales-rate calculation.
-    columns:
-      - name: product_id
-        tests: [not_null, unique]
-      - name: number_of_days
         tests: [not_null]

@@ -48,7 +48,7 @@ is a config change, not a rewrite.
 | olist_sellers_dataset | seller_id | — |
 | product_category_name_translation | product_category_name | — |
 
-## Contract 3 — Warehouse → Graph & Discovery (producer: B, consumer and owner of the graph side: C)
+## Contract 3 — Warehouse → Graph & Discovery (owner: C)
 
 | Field | Value |
 |---|---|
@@ -91,36 +91,6 @@ is a config change, not a rewrite.
 | `/products/{product_id}` | GET | — | `ProductDetail` | Name, category, graph degree and per-seller inventory. 404 if the product is in neither the catalogue nor the graph. Added by D. |
 
 Served by `ecom.api.app` (`make serve`); schemas in `ecom.discovery.schemas` and `ecom.api.schemas`. Interactive docs at `/docs`. Search treats `q` as literal text (not a regex) and matches spaces against category slugs, so `bed bath` finds `bed_bath_table`.
-
-## Contract 6 — Cleaned data → Warehouse models (owner: B; consumers: C, D)
-
-Refresh assumption for every model: full rebuild on each `dbt build`; no
-incremental logic. BigQuery sandbox tables expire after 60 days.
-
-| Model | Grain | Unique key | Notes |
-|---|---|---|---|
-| `stg_orders` | one row per order | `order_id` | status restricted by an accepted-values test |
-| `stg_order_items` | one row per order item line | (`order_id`, `order_item_id`) | each line is one unit |
-| `stg_products`, `stg_customers`, `stg_sellers` | one row per source row | `product_id`, `customer_id`, `seller_id` | `customer_id` is a per-order key; the person is `customer_unique_id` |
-| `stg_category_translation` | one row per category | `product_category_name` | covers 71 of 73 categories: always LEFT join |
-| `int_order_products` | one row per (order, product) | the pair | excludes `canceled` and `unavailable` (`EXCLUDED_STATUSES`) |
-| `fct_order_items` | one row per order item line | (`order_id`, `order_item_id`) | BigQuery: integer-range partition on `order_month_key`, clustered by `product_id`, `seller_id` |
-| `fct_orders` | one row per order with items | `order_id` | `distinct_products` is the basket size |
-| `fct_product_cooccurrence` | unordered product pair | (`product_a`, `product_b`) | `product_a < product_b`; `order_count` >= 1 |
-| `dim_products`, `dim_customers`, `dim_sellers`, `dim_dates` | one row per product / customer / seller / day | respective id, `date_day` | category English name folded into `dim_products` |
-| `product_sales_summary` | one row per product | `product_id` | see below |
-
-**Sales aggregate for the inventory consumer (`product_sales_summary`).**
-Columns: `product_id`, `total_units_sold`, `observation_start_date`,
-`observation_end_date`, `number_of_days`, `item_lines_per_day`. Window is the
-project-wide analysis window, 2017-02-01 to 2018-08-31 (577 days), equal to
-`ecom.config.WINDOW_START` / `WINDOW_END`. Delivered orders only; each item line
-is one unit. The pipeline's inventory generator excludes only canceled and
-unavailable orders, so its unit counts can be slightly higher.
-
-**Reconciled metrics.** 112,650 fact rows; item price total 13,591,643.70;
-99,441 orders of which 98,666 have items; 4,054 pairs, weight sum 4,476;
-`dbt build` PASS=71 WARN=1 TOTAL=72.
 
 ## Open items for the team
 
