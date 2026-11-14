@@ -1,13 +1,22 @@
--- Grain: one row per product.
+-- Grain: one row per product (every product in dim_products, including those
+-- with no sales in the window). Unique key: product_id.
+--
+-- Contract for the inventory consumer: total_units_sold over the agreed
+-- observation window, plus the window bounds and number_of_days. In Olist every
+-- order_items row is one unit, so units = item lines.
+--
+-- The window is the project-wide analysis window (vars window_start and
+-- window_end, equal to ecom.config.WINDOW_START / WINDOW_END), not the min and
+-- max date found in the data. The data run from late 2016 to late 2018 with
+-- sparse months at both ends, so a data-derived window would give a different
+-- rate from the one the synthetic inventory and the API use.
 --
 -- This model keeps the stricter delivered-only filter on purpose, unlike
 -- int_order_products. It reports realised sales, and an order still in flight
 -- is not money yet. Co-occurrence asks a different question -- did a customer
 -- choose these together -- which is answered as soon as the basket is placed.
---
--- The rate is line count per day over the window actually observed in the
--- data, computed from the min and max delivered purchase date rather than
--- hardcoded, so it stays correct if the source is refreshed.
+-- The pipeline's inventory generator excludes only canceled and unavailable
+-- orders, so its unit counts can be slightly higher than total_units_sold.
 WITH delivered_lines AS (
   SELECT
     product_id,
@@ -17,13 +26,14 @@ WITH delivered_lines AS (
     price
   FROM {{ ref('fct_order_items') }}
   WHERE LOWER(order_status) = 'delivered'
+    AND order_date BETWEEN DATE '{{ var("window_start") }}' AND DATE '{{ var("window_end") }}'
 ),
 
 observation_window AS (
   SELECT
-    MIN(order_date) AS start_date,
-    MAX(order_date) AS end_date
-  FROM delivered_lines
+    DATE '{{ var("window_start") }}'  AS start_date,
+    DATE '{{ var("window_end") }}'    AS end_date,
+    {{ dbt.datediff("DATE '" ~ var("window_start") ~ "'", "DATE '" ~ var("window_end") ~ "'", 'day') }} + 1 AS number_of_days
 ),
 
 sales_per_product AS (
@@ -38,18 +48,14 @@ sales_per_product AS (
 
 SELECT
   products.product_id,
+  COALESCE(sales.delivered_item_line_count, 0)   AS total_units_sold,
   COALESCE(sales.delivered_item_line_count, 0)   AS delivered_item_line_count,
   COALESCE(sales.delivered_order_count, 0)       AS delivered_order_count,
   COALESCE(sales.delivered_gross_sales, 0)       AS delivered_gross_sales,
   observation.start_date                         AS observation_start_date,
   observation.end_date                           AS observation_end_date,
-  CASE
-    WHEN observation.start_date IS NULL THEN 0
-    ELSE {{ safe_divide(
-           'COALESCE(sales.delivered_item_line_count, 0)',
-           dbt.datediff('observation.start_date', 'observation.end_date', 'day') ~ ' + 1'
-         ) }}
-  END AS item_lines_per_day
+  observation.number_of_days                     AS number_of_days,
+  {{ safe_divide('COALESCE(sales.delivered_item_line_count, 0)', 'observation.number_of_days') }} AS item_lines_per_day
 FROM {{ ref('dim_products') }} AS products
 LEFT JOIN sales_per_product AS sales
   ON products.product_id = sales.product_id
